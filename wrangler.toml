@@ -1,0 +1,9 @@
+name = "wylie-seating"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "public"
+
+# 공유 상태 저장용 KV 네임스페이스
+# id 는 `wrangler kv namespace create SEATING_KV` 로 생성 후 채워집니다.
+[[kv_namespaces]]
+binding = "SEATING_KV"
+id = "e215196d32644efc890fda30f1869fa8"

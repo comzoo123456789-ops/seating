@@ -1,0 +1,13 @@
+{
+  "name": "wylie-seating",
+  "version": "1.0.0",
+  "private": true,
+  "description": "와일리 좌석배치도 (Cloudflare Pages + KV)",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public"
+  },
+  "devDependencies": {
+    "wrangler": "^4.110.0"
+  }
+}
