@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>와일리 좌석배치도</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet" />
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="seat-shell" id="seat-shell">
+
+    <!-- ── 상단 헤더 ───────────────────────────────────────── -->
+    <header class="seat-header">
+      <div class="seat-brand">
+        <span class="seat-brand__mark">🗺️</span>
+        <div class="seat-brand__text">
+          <span class="seat-brand__title">와일리 좌석배치도</span>
+          <span class="seat-brand__sub" id="seat-brand-sub">Seating Chart</span>
+        </div>
+      </div>
+
+      <!-- 층 탭 -->
+      <div class="seat-floors" id="seat-floors"></div>
+
+      <div class="seat-header__spacer"></div>
+
+      <!-- 검색 -->
+      <div class="seat-search" id="seat-search">
+        <span class="seat-search__icon">🔍</span>
+        <input type="text" id="seat-search-input" class="seat-search__input"
+               placeholder="이름·부서·직급·좌석 검색" autocomplete="off" />
+        <button class="seat-search__clear" id="seat-search-clear" title="지우기" aria-label="검색 지우기">✕</button>
+        <!-- 검색 자동완성 -->
+        <div class="seat-ac" id="seat-ac" hidden></div>
+      </div>
+
+      <!-- 줌 -->
+      <div class="seat-zoom">
+        <button class="ui-icon" id="seat-zoom-out" title="축소">－</button>
+        <span class="seat-zoom__val" id="seat-zoom-val">100%</span>
+        <button class="ui-icon" id="seat-zoom-in" title="확대">＋</button>
+        <button class="ui-icon" id="seat-zoom-fit" title="화면 맞춤">⊡</button>
+      </div>
+
+      <!-- 명단 / 현황 (보기·편집 공통) -->
+      <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-btn-list" title="전체 명단에서 찾기">📋 명단</button>
+      <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-btn-stats" title="재석/공석 현황">📊 현황</button>
+
+      <!-- 저장 상태 (편집 중 표시) -->
+      <span class="seat-saved" id="seat-saved" hidden></span>
+
+      <!-- 모드 표시 / 편집 -->
+      <span class="seat-lock seat-lock--locked" id="seat-lock">🔒 보기 모드</span>
+      <button class="ui-btn ui-btn--sm" id="seat-btn-edit">관리자 편집</button>
+
+      <!-- 편집 전용 툴바 -->
+      <div class="seat-edit-tools" id="seat-edit-tools" hidden>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-desk" title="좌석 추가">＋ 좌석</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-desk-bulk" title="좌석 여러 개를 격자로 한 번에 생성">＋ 좌석×N</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-zone" title="구역 추가">＋ 구역</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-line" title="선/벽 추가">＋ 선</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-facility" title="시설 추가(회의실·화장실 등)">＋ 시설</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-add-label" title="텍스트 추가">＋ 텍스트</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-btn-unseated" title="미배치 임직원 → 드래그해서 배치">🧑‍💼 미배치</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-mng-emp" title="임직원 관리(이름·부서·직급)">👤 임직원</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-mng-dept" title="부서 관리">🏷 부서</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-mng-floor" title="층 관리">🏢 층</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-btn-data" title="백업·복원·엑셀">💾 데이터</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="seat-btn-print" title="인쇄">🖨</button>
+        <button class="ui-btn ui-btn--sm" id="seat-btn-done">완료</button>
+      </div>
+    </header>
+
+    <!-- ── 캔버스 뷰포트 ─────────────────────────────────────── -->
+    <div class="seat-viewport" id="seat-viewport">
+      <div class="seat-canvas" id="seat-canvas">
+        <div class="seat-canvas__grid" id="seat-canvas-grid"></div>
+        <!-- 아이템은 app.js 가 렌더 -->
+      </div>
+      <div class="seat-marquee" id="seat-marquee" hidden></div>
+      <div class="seat-empty" id="seat-empty" hidden>
+        <div class="seat-empty__icon">🗺️</div>
+        <div class="seat-empty__title">이 층에 배치된 좌석이 없습니다</div>
+        <div class="seat-empty__sub">관리자 편집 모드에서 좌석을 추가해 보세요</div>
+      </div>
+    </div>
+
+    <!-- ── 하단 범례 ─────────────────────────────────────────── -->
+    <div class="seat-legend" id="seat-legend"></div>
+  </div>
+
+  <!-- 좌석 상세 팝오버 -->
+  <div class="seat-pop" id="seat-pop" hidden role="dialog"></div>
+
+  <!-- 공용 모달 -->
+  <div class="seat-modal-backdrop" id="seat-modal-backdrop" hidden>
+    <div class="seat-modal" id="seat-modal" role="dialog" aria-modal="true">
+      <div class="seat-modal__hd">
+        <div class="seat-modal__title" id="seat-modal-title">제목</div>
+        <button class="seat-modal__close" data-seat-close aria-label="닫기">✕</button>
+      </div>
+      <div class="seat-modal__body" id="seat-modal-body"></div>
+      <div class="seat-modal__ft" id="seat-modal-ft"></div>
+    </div>
+  </div>
+
+  <!-- 미배치 임직원 패널 (편집 모드) -->
+  <aside class="seat-side" id="seat-side" hidden>
+    <div class="seat-side__hd">
+      <span>미배치 임직원 <span class="seat-side__cnt" id="seat-side-cnt">0</span></span>
+      <button class="seat-modal__close" id="seat-side-close" aria-label="닫기">✕</button>
+    </div>
+    <div class="seat-side__search">
+      <input type="text" id="seat-side-search" class="seat-inp" placeholder="이름·부서 검색" autocomplete="off">
+    </div>
+    <div class="seat-side__hint">항목을 배치도로 <b>드래그</b>하면 좌석이 만들어집니다. 빈 좌석 위에 놓으면 그 자리에 배정됩니다.</div>
+    <div class="seat-side__list" id="seat-side-list"></div>
+  </aside>
+
+  <!-- 컨텍스트 메뉴 -->
+  <div class="seat-ctx" id="seat-ctx" hidden></div>
+
+  <!-- 토스트 -->
+  <div id="ui-toast"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

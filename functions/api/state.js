@@ -20,6 +20,14 @@ export async function onRequestGet({ env }) {
 }
 
 async function save({ request, env }) {
+  // ── 편집 비밀번호 확인 (헤더 x-edit-pass) ──
+  const pass = request.headers.get('x-edit-pass') || '';
+  if (pass !== (env.EDIT_PASSWORD || '0810')) {
+    return new Response('{"ok":false,"error":"unauthorized"}', {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   const body = await request.text();
   if (body.length > 30 * 1024 * 1024) {
     return new Response('{"ok":false,"error":"too large"}', {
