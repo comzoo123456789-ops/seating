@@ -106,6 +106,17 @@ async function loadState(){
 /* ── 렌더 ── */
 function refreshMaps(){ DBYID=Object.fromEntries(STATE.depts.map(d=>[d.id,d])); DBYNAME=Object.fromEntries(STATE.depts.map(d=>[d.name,d])); }
 
+/* ── 책상 실치수 · 면적 (재무 면적/비용 배분용) ── */
+function deskDefaults(it){ if(it.orient!=='h'&&it.orient!=='v')it.orient=(it.w>=it.h?'h':'v'); if(!(it.dn>=1))it.dn=1; if(!(it.mmU>0))it.mmU=1400; if(!(it.mmD>0))it.mmD=700; }
+function deskArea(it){ return (it.mmU||1400)*(it.dn||1)*(it.mmD||700)/1e6; } // ㎡
+function deskDims(it){ const L=(it.mmU||1400)*(it.dn||1), D=(it.mmD||700); return it.orient==='v'?{w:D,h:L}:{w:L,h:D}; } // 실제 가로·세로(mm)
+function deskTip(it){ const d=deskDims(it); return `${d.w} × ${d.h}mm · ${(d.w*d.h/1e6).toFixed(2)}㎡`; }
+function setDeskSize(it,orient,dn,mmU,mmD){ deskDefaults(it);
+  const oldLong=(it.orient==='v'?it.h:it.w), oldShort=(it.orient==='v'?it.w:it.h), unit=oldLong/(it.dn||1);
+  it.orient=(orient==='v'?'v':'h'); it.dn=Math.max(1,dn|0||1); it.mmU=mmU||1400; it.mmD=mmD||700;
+  const newLong=Math.max(8,Math.round(unit*it.dn)), newShort=Math.max(8,Math.round(oldShort));
+  if(it.orient==='v'){ it.h=newLong; it.w=newShort; } else { it.w=newLong; it.h=newShort; } }
+
 function tabs(){ $('#floors').innerHTML=STATE.floors.map((f,i)=>`<button class="${i===fi?'on':''}" data-i="${i}">${esc(f.name)}</button>`).join('');
   $$('#floors button').forEach(b=>b.onclick=()=>{fi=+b.dataset.i; activeId=null; selected.clear(); closePanel(); render(); fit(); drawMeas();}); }
 
@@ -211,7 +222,9 @@ wrap.addEventListener('pointerdown',e=>{
     const r=wrap.getBoundingClientRect(); mstart={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; drag={mode:'meas',sx:e.clientX,sy:e.clientY}; wrap.setPointerCapture(e.pointerId); return; }
   if(editMode && e.target.classList && e.target.classList.contains('rz')){
     const id=e.target.dataset.for, it=STATE.items.find(x=>x.id===id);
-    if(it){ drag={mode:'resize',id,sx:e.clientX,sy:e.clientY,ow:it.w,oh:it.h,moved:false}; wrap.setPointerCapture(e.pointerId); }
+    if(it){ const d={mode:'resize',id,sx:e.clientX,sy:e.clientY,ow:it.w,oh:it.h,moved:false};
+      if(it.type==='desk'){ deskDefaults(it); d.odn=it.dn||1; d.orient=it.orient; d.unit=(it.orient==='v'?it.h:it.w)/(it.dn||1); }
+      drag=d; wrap.setPointerCapture(e.pointerId); }
     return;
   }
   const el=e.target.closest('.item');
@@ -242,6 +255,12 @@ wrap.addEventListener('pointermove',e=>{
   if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
   if(drag.mode==='pan'){ view.tx=drag.tx+(e.clientX-drag.sx); view.ty=drag.ty+(e.clientY-drag.sy); applyView(); }
   else if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(!it)return;
+    if(it.type==='desk'){ const ddw=(e.clientX-drag.sx)/view.s, ddh=(e.clientY-drag.sy)/view.s;
+      const along=(drag.orient==='v'?drag.oh+ddh:drag.ow+ddw), unit=drag.unit||(drag.orient==='v'?drag.oh:drag.ow)||24;
+      const dn=Math.max(1,Math.round(along/unit)); it.dn=dn;
+      if(drag.orient==='v')it.h=Math.round(unit*dn); else it.w=Math.round(unit*dn);
+      const del=paper.querySelector(`[data-id="${drag.id}"]`); if(del){ del.style.width=it.w+'px'; del.style.height=it.h+'px'; }
+      moveHandle(it); tip.textContent=deskTip(it); tip.classList.add('on'); moveTip(e); return; }
     const dw=(e.clientX-drag.sx)/view.s, dh=(e.clientY-drag.sy)/view.s;
     const minW=it.type==='line'?4:24, minH=it.type==='line'?4:16;
     it.w=Math.max(minW,snap(drag.ow+dw)); it.h=Math.max(minH,snap(drag.oh+dh));
@@ -266,7 +285,7 @@ wrap.addEventListener('pointerup',e=>{
         if(lastTap && lastTap.id===id && now-lastTap.t<350){ const it=STATE.items.find(x=>x.id===id); lastTap=null; if(it)editItem(it); }
         else lastTap={id,t:now}; }
     }
-    if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(it&&it.type==='line')snapLine(it); markDirty(); pushHist(); render(); }
+    if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(it&&it.type==='line')snapLine(it); tip.classList.remove('on'); markDirty(); pushHist(); render(); }
     if(drag.mode==='pan'&&!drag.moved&&drag.el){ const it=STATE.items.find(x=>x.id===drag.el.dataset.id); if(it){ if(it.name)openPanel(it.id); else openReserve(it); } }
   }
   wrap.classList.remove('grab'); drag=null; });
@@ -471,13 +490,46 @@ function editDesk(it){
     <div class="row2"><div><label>부서</label><select id="m_dept">${opts}</select></div>
     <div><label>직급</label><input id="m_title" value="${esc(it.title||'')}"/></div></div>
     <label>좌석번호</label><input id="m_seat" value="${esc(it.seatNo||'')}"/>
+    <div class="row2"><div><label>방향</label><select id="m_orient"><option value="h" ${it.orient!=='v'?'selected':''}>가로형 (긴변 →)</option><option value="v" ${it.orient==='v'?'selected':''}>세로형 (긴변 ↓)</option></select></div>
+    <div><label>책상 수</label><input id="m_dn" type="number" min="1" step="1" value="${it.dn||1}"/></div></div>
+    <div class="row2"><div><label>책상 가로(mm)</label><input id="m_mmU" type="number" min="1" value="${it.mmU||1400}"/></div>
+    <div><label>깊이 세로(mm)</label><input id="m_mmD" type="number" min="1" value="${it.mmD||700}"/></div></div>
+    <div class="arealine" id="m_area"></div>
     <div class="actions"><button class="btn danger" id="m_empty">비우기(공석)</button><span style="flex:1"></span><button class="btn" id="m_cancel">취소</button><button class="btn primary" id="m_ok">확인</button></div>`);
   const nm=$('#m_name'), dp=$('#m_dept'), tt=$('#m_title');
+  const updArea=()=>{ const o=$('#m_orient').value, dn=Math.max(1,+$('#m_dn').value||1), u=+$('#m_mmU').value||1400, dd=+$('#m_mmD').value||700; const L=u*dn, W=o==='v'?dd:L, H=o==='v'?L:dd, a=W*H/1e6; $('#m_area').innerHTML=`총 <b>${W} × ${H}mm</b> · <b>${a.toFixed(2)}㎡</b> · ${(a/3.3058).toFixed(2)}평`; };
+  ['m_orient','m_dn','m_mmU','m_mmD'].forEach(id=>{ const el=$('#'+id); if(el){ el.oninput=updArea; el.onchange=updArea; } }); updArea();
   nm.oninput=()=>{ const e=STATE.employees.find(x=>x.name===nm.value.trim()); if(e){ const d=DBYNAME[e.dept]; if(d)dp.value=d.id; if(e.rank)tt.value=e.rank; } };
   $('#m_cancel').onclick=closeModal;
   $('#m_empty').onclick=()=>{ it.name=''; it.title=''; it.occupied=false; closeModal(); markDirty(); pushHist(); render(); };
-  $('#m_ok').onclick=()=>{ it.name=nm.value.trim(); it.deptId=dp.value||null; it.title=tt.value.trim(); it.seatNo=$('#m_seat').value.trim(); it.occupied=!!it.name; closeModal(); markDirty(); pushHist(); render(); };
+  $('#m_ok').onclick=()=>{ it.name=nm.value.trim(); it.deptId=dp.value||null; it.title=tt.value.trim(); it.seatNo=$('#m_seat').value.trim(); it.occupied=!!it.name;
+    setDeskSize(it,$('#m_orient').value,Math.max(1,+$('#m_dn').value||1),+$('#m_mmU').value||1400,+$('#m_mmD').value||700);
+    closeModal(); markDirty(); pushHist(); render(); };
 }
+
+/* ── 면적 · 부서별 비용 집계 (재무) ── */
+function openAreaReport(){ const M2PY=3.3058;
+  const rows={}; let tArea=0,tCnt=0,tSeat=0;
+  STATE.items.filter(i=>i.type==='desk').forEach(it=>{ const k=it.deptId||'__none', a=deskArea(it);
+    if(!rows[k])rows[k]={area:0,cnt:0,seated:0}; rows[k].area+=a; rows[k].cnt++; if(it.name)rows[k].seated++; tArea+=a; tCnt++; if(it.name)tSeat++; });
+  const list=Object.entries(rows).map(([k,v])=>({name:k==='__none'?'(부서 미지정)':(DBYID[k]?DBYID[k].name:'(삭제된 부서)'),color:DBYID[k]?DBYID[k].color:'#9aa1b0',...v})).sort((a,b)=>b.area-a.area);
+  const body=list.map(r=>{ const pct=tArea?r.area/tArea*100:0;
+    return `<tr><td><span class="ldot" style="background:${r.color}"></span>${esc(r.name)}</td><td>${r.seated}/${r.cnt}</td><td>${r.area.toFixed(2)}</td><td>${(r.area/M2PY).toFixed(2)}</td><td>${pct.toFixed(1)}%</td><td class="cost" data-pct="${pct}">–</td></tr>`; }).join('');
+  openModal(`<h3>면적 · 부서별 비용 집계</h3>
+    <div class="arow"><label style="flex:1">총 비용 (임대료·관리비 등, 원)</label><input id="a_total" type="number" placeholder="예: 30000000" style="width:170px"/></div>
+    <div class="atbl-wrap"><table class="atbl"><thead><tr><th>부서</th><th>좌석<span style="font-weight:400">(재석/전체)</span></th><th>면적㎡</th><th>평</th><th>비율</th><th>배분비용</th></tr></thead>
+    <tbody>${body||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">좌석 없음</td></tr>'}</tbody>
+    <tfoot><tr><th>합계</th><th>${tSeat}/${tCnt}</th><th>${tArea.toFixed(2)}</th><th>${(tArea/M2PY).toFixed(2)}</th><th>100%</th><th id="a_tcost">–</th></tr></tfoot></table></div>
+    <div class="fnote">· 면적은 좌석 실치수(기본 1400×700mm) 기준이며 도면 축척과 무관하게 정확합니다. 방향(가로/세로)은 면적에 영향 없음. · 1평 = 3.3058㎡</div>
+    <div class="actions"><button class="btn" id="a_csv">⬇ CSV</button><span style="flex:1"></span><button class="btn primary" id="a_close">닫기</button></div>`);
+  const calc=()=>{ const tot=+$('#a_total').value||0; $$('.atbl .cost').forEach(td=>{ const p=+td.dataset.pct||0; td.textContent=tot?Math.round(tot*p/100).toLocaleString():'–'; }); $('#a_tcost').textContent=tot?Math.round(tot).toLocaleString():'–'; };
+  $('#a_total').oninput=calc; $('#a_close').onclick=closeModal;
+  $('#a_csv').onclick=()=>{ const tot=+$('#a_total').value||0; let csv='부서,재석,전체좌석,면적(㎡),면적(평),비율(%),배분비용(원)\n';
+    list.forEach(r=>{ const pct=tArea?r.area/tArea*100:0; csv+=`${r.name},${r.seated},${r.cnt},${r.area.toFixed(2)},${(r.area/M2PY).toFixed(2)},${pct.toFixed(1)},${tot?Math.round(tot*pct/100):''}\n`; });
+    csv+=`합계,${tSeat},${tCnt},${tArea.toFixed(2)},${(tArea/M2PY).toFixed(2)},100,${tot?Math.round(tot):''}\n`;
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'})); a.download='부서별_면적_비용.csv'; a.click(); };
+}
+if($('#areaBtn'))$('#areaBtn').onclick=openAreaReport;
 
 /* 임직원 관리 (입사 · 퇴사 · 수정 · 정렬) */
 $('#mgrEmp').onclick=manageEmp;
