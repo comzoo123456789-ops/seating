@@ -522,6 +522,7 @@ function openAreaReport(){ const M2PY=3.3058;
     <tfoot><tr><th>합계</th><th>${tSeat}/${tCnt}</th><th>${tArea.toFixed(2)}</th><th>${(tArea/M2PY).toFixed(2)}</th><th>100%</th><th id="a_tcost">–</th></tr></tfoot></table></div>
     <div class="fnote">· 면적은 좌석 실치수(기본 1400×700mm) 기준이며 도면 축척과 무관하게 정확합니다. 방향(가로/세로)은 면적에 영향 없음. · 1평 = 3.3058㎡</div>
     <div class="actions"><button class="btn" id="a_csv">⬇ CSV</button><span style="flex:1"></span><button class="btn primary" id="a_close">닫기</button></div>`);
+  $('#modal').classList.add('wide');
   const calc=()=>{ const tot=+$('#a_total').value||0; $$('.atbl .cost').forEach(td=>{ const p=+td.dataset.pct||0; td.textContent=tot?Math.round(tot*p/100).toLocaleString():'–'; }); $('#a_tcost').textContent=tot?Math.round(tot).toLocaleString():'–'; };
   $('#a_total').oninput=calc; $('#a_close').onclick=closeModal;
   $('#a_csv').onclick=()=>{ const tot=+$('#a_total').value||0; let csv='부서,재석,전체좌석,면적(㎡),면적(평),비율(%),배분비용(원)\n';

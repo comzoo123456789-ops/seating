@@ -141,7 +141,7 @@ button{font-family:inherit}
 .arealine{margin:8px 0 2px; padding:8px 12px; background:color-mix(in srgb,var(--accent) 8%, var(--panel)); border-radius:9px; font-size:13px; color:var(--ink-2)}
 .arealine b{color:var(--accent); font-variant-numeric:tabular-nums}
 .arow{display:flex; align-items:center; gap:10px; margin:4px 0 10px}
-.atbl-wrap{max-height:52vh; overflow:auto; border:1px solid var(--line); border-radius:12px}
+.atbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px}
 .atbl{width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums}
 .atbl th,.atbl td{padding:8px 11px; text-align:right; white-space:nowrap}
 .atbl th:first-child,.atbl td:first-child{text-align:left}
