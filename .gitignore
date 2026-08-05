@@ -3,3 +3,4 @@ node_modules/
 data.state.json
 .DS_Store
 *.log
+_backup/

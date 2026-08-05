@@ -100,6 +100,7 @@ async function loadState(){
   const dn=Object.fromEntries((s.depts||[]).map(d=>[d.name,d.id]));
   s.items.forEach(i=>{ if(i.type==='desk'&&i.reserved&&!i.name&&i.reserved.from&&i.reserved.from<=today){
     i.name=i.reserved.name; if(dn[i.reserved.dept])i.deptId=dn[i.reserved.dept]; i.occupied=true; delete i.reserved; } });
+  calibrateAll(s); // 저장된 외곽 치수(예: 25.55 / 14.9)로 각 층 배율 자동 보정
   return s;
 }
 
@@ -277,7 +278,7 @@ wrap.addEventListener('pointermove',e=>{
 wrap.addEventListener('pointerup',e=>{
   ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
   if(drag){
-    if(drag.mode==='meas'){ if(mprev){ const it=addMeas(mprev.a,mprev.b); mprev=null; if(it)editVal(it.id); } drawMeas(); wrap.classList.remove('grab'); drag=null; return; }
+    if(drag.mode==='meas'){ if(mprev){ addMeas(mprev.a,mprev.b); mprev=null; } drawMeas(); wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='measEdit'){ if(drag.moved){ markDirty(); pushHist(); drawMeas(); } else editVal(drag.id); wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='item'){
       if(drag.moved){ drag.ids.forEach(id=>{ const it=STATE.items.find(x=>x.id===id); if(it&&it.type==='line')snapLine(it); }); markDirty(); pushHist(); render(); }
@@ -696,7 +697,13 @@ $('#pngBtn').onclick=exportPNG; $('#printBtn').onclick=printMap;
 
 /* 치수선: 선 긋고 놓으면 길이(m) 입력→저장 · 📏로 전체 보이기/숨기기 */
 function segStraight(a,b){ return Math.abs(b.x-a.x)>=Math.abs(b.y-a.y) ? {x:b.x,y:a.y} : {x:a.x,y:b.y}; }
-function autoLen(a,b){ const f=curFloor(); const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; const sc=hz?f.mX:f.mY; return sc?(len*sc).toFixed(2)+' m':Math.round(len)+' px'; }
+/* 저장된 치수선(수동값)으로 배율 보정 — 축별로 가장 긴 값선을 기준(외곽 25.55 / 14.9) */
+function calibrateFloor(st,f){ if(!f)return; const ms=(st.items||[]).filter(i=>i.type==='meas'&&i.floorId===f.id&&i.val>0&&!i.auto);
+  let bh=null,bv=null; ms.forEach(m=>{ if((m.orient||'h')==='h'){ if(m.w>0&&(!bh||m.w>bh.w))bh=m; } else { if(m.h>0&&(!bv||m.h>bv.h))bv=m; } });
+  if(bh)f.mX=bh.val/bh.w; if(bv)f.mY=bv.val/bv.h; }
+function calibrateAll(st){ st=st||STATE; (st.floors||[]).forEach(f=>calibrateFloor(st,f)); }
+function fmtM(m){ return (Math.round(m*10)/10).toFixed(1)+' m'; }
+function autoLen(a,b){ const f=curFloor(); const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; const sc=hz?f.mX:f.mY; return sc?fmtM(len*sc):Math.round(len)+' px'; }
 function drawMeas(preview){ if(!mlayer)return; if(!measMode){ mlayer.innerHTML=''; return; }
   const inv=1/view.s, f=curFloor(); if(!f){ mlayer.innerHTML=''; return; }
   const seg=(a,b,id,prev,val)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2; const text=(val!=null)?(val+' m'):autoLen(a,b); const manual=val!=null;
@@ -711,15 +718,15 @@ function addMeas(a,b){ const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz
   const it={id:uid(),floorId:curId(),type:'meas',orient:hz?'h':'v'};
   if(hz){ it.x=Math.round(Math.min(a.x,b.x)); it.y=Math.round(a.y); it.w=Math.round(dx); it.h=0; }
   else { it.x=Math.round(a.x); it.y=Math.round(Math.min(a.y,b.y)); it.w=0; it.h=Math.round(dy); }
-  STATE.items.push(it); markDirty(); pushHist(); drawMeas(); return it; }
+  it.auto=true; STATE.items.push(it); markDirty(); pushHist(); drawMeas(); return it; }
 function editVal(id){ const it=STATE.items.find(x=>x.id===id); if(!it)return; const f=curFloor(); const hz=(it.orient||'h')==='h'; const len=hz?it.w:it.h;
-  const auto=(hz?f.mX:f.mY)?(len*(hz?f.mX:f.mY)).toFixed(2):''; const cur=it.val!=null?it.val:auto;
-  const inp=prompt('이 선의 실제 길이(m) 입력  ·  비우면 자동계산', cur); if(inp==null)return; const t=String(inp).trim();
-  if(t===''){ delete it.val; } else { const m=parseFloat(t); if(!(m>0))return alert('숫자로 입력하세요'); it.val=m; }
-  markDirty(); pushHist(); drawMeas(); }
+  const auto=(hz?f.mX:f.mY)?(Math.round(len*(hz?f.mX:f.mY)*10)/10).toFixed(1):''; const cur=it.val!=null?it.val:auto;
+  const inp=prompt('이 선의 실제 길이(m) 입력  ·  비우면 자동(보정) 표시\n※ 값을 넣으면 이 층 배율의 기준이 됩니다', cur); if(inp==null)return; const t=String(inp).trim();
+  if(t===''){ delete it.val; it.auto=true; } else { const m=parseFloat(t); if(!(m>0))return alert('숫자로 입력하세요'); it.val=m; delete it.auto; }
+  calibrateFloor(STATE,f); markDirty(); pushHist(); drawMeas(); }
 function clearMeasure(){ if(mlayer)mlayer.innerHTML=''; }
 $('#measBtn').onclick=()=>{ measMode=!measMode; $('#measBtn').classList.toggle('on',measMode); wrap.classList.toggle('measuring',measMode); drawMeas();
-  if(measMode)toast('선 긋기 → 클릭해서 실제 길이 입력 · 끝점 드래그=늘리기 · 가운데=이동 · 우클릭=삭제'); };
+  if(measMode)toast('드래그=길이 자동표시(0.1m) · 선 클릭=길이 직접입력(배율 기준) · 끝점=늘리기 · 우클릭=삭제'); };
 if(mlayer){ mlayer.addEventListener('contextmenu',e=>{ const g=e.target.closest('[data-mi]'); if(g){ e.preventDefault(); STATE.items=STATE.items.filter(x=>x.id!==g.dataset.mi); markDirty(); pushHist(); drawMeas(); } }); }
 
 async function save(){ try{ STATE.updatedAt=Date.now();
