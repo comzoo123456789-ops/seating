@@ -79,9 +79,10 @@ function mergeWalls(items, floors){
 /* ── 상태 ── */
 let STATE={floors:[],depts:[],employees:[],items:[]};
 let DBYID={}, DBYNAME={};
-let fi=0, view={s:1,tx:0,ty:0}, filter=null, activeId=null;
+let fi=0, view={s:1,tx:0,ty:0}, filter=null, vacantMode=false, activeId=null;
 let editMode=false, dirty=false, selected=new Set(), drag=null, lastTap=null, adminPw='';
-const wrap=$('#wrap'), stage=$('#stage'), paper=$('#paper'), walls=$('#walls'), tip=$('#tip');
+let measMode=false, mstart=null, mprev=null;
+const wrap=$('#wrap'), stage=$('#stage'), paper=$('#paper'), walls=$('#walls'), dlayer=$('#dlayer'), mlayer=$('#mlayer'), tip=$('#tip');
 const curFloor=()=>STATE.floors[fi], curId=()=>curFloor()&&curFloor().id;
 const fItems=()=>STATE.items.filter(i=>i.floorId===curId());
 const initials=nm=> nm?(nm.length>=3?nm.slice(1):nm):'';
@@ -94,6 +95,11 @@ async function loadState(){
   s.employees.forEach(e=>{ if(!e.id)e.id=uid(); });
   s.items.forEach(i=>{ if(!i.id)i.id=uid(); });
   s.items=mergeWalls(s.items,s.floors);
+  // 사용 시작일이 지난 예약 → 정식 좌석(재석)으로 자동 전환
+  const today=new Date().toISOString().slice(0,10);
+  const dn=Object.fromEntries((s.depts||[]).map(d=>[d.name,d.id]));
+  s.items.forEach(i=>{ if(i.type==='desk'&&i.reserved&&!i.name&&i.reserved.from&&i.reserved.from<=today){
+    i.name=i.reserved.name; if(dn[i.reserved.dept])i.deptId=dn[i.reserved.dept]; i.occupied=true; delete i.reserved; } });
   return s;
 }
 
@@ -101,19 +107,22 @@ async function loadState(){
 function refreshMaps(){ DBYID=Object.fromEntries(STATE.depts.map(d=>[d.id,d])); DBYNAME=Object.fromEntries(STATE.depts.map(d=>[d.name,d])); }
 
 function tabs(){ $('#floors').innerHTML=STATE.floors.map((f,i)=>`<button class="${i===fi?'on':''}" data-i="${i}">${esc(f.name)}</button>`).join('');
-  $$('#floors button').forEach(b=>b.onclick=()=>{fi=+b.dataset.i; activeId=null; selected.clear(); closePanel(); render(); fit();}); }
+  $$('#floors button').forEach(b=>b.onclick=()=>{fi=+b.dataset.i; activeId=null; selected.clear(); closePanel(); render(); fit(); drawMeas();}); }
 
 function render(){
   const f=curFloor(); if(!f)return;
   $$('#floors button').forEach(b=>b.classList.toggle('on',+b.dataset.i===fi));
   paper.style.width=f.w+'px'; paper.style.height=f.h+'px';
   walls.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); walls.style.width=f.w+'px'; walls.style.height=f.h+'px';
+  mlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); mlayer.style.width=f.w+'px'; mlayer.style.height=f.h+'px';
+  dlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); dlayer.style.width=f.w+'px'; dlayer.style.height=f.h+'px';
   walls.innerHTML='';
   $$('.item',paper).forEach(el=>el.remove());
   let html='';
   fItems().forEach(it=>{
     const st=`left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px`;
     if(it.type==='line'){ const col=(it.color&&it.color[0]==='#')?it.color:'var(--wall)'; html+=`<div class="item line" data-id="${it.id}" style="${st};background:${col}"></div>`; return; }
+    if(it.type==='meas'||it.type==='dim')return;
     if(it.type==='shape'){ html+=`<div class="item pillar" data-id="${it.id}" style="${st}"></div>`; return; }
     if(it.type==='facility'){ const lbl=(it.label||'').replace(/\n/g,' '); const k=kindOf(lbl); const big=it.w*it.h>=9000;
       const md=Math.min(it.w,it.h);
@@ -121,8 +130,10 @@ function render(){
       html+=`<div class="item ${big?'space':'mk'}" data-id="${it.id}" style="${st}"><span class="ic"><svg viewBox="0 0 24 24" style="width:${isz}px;height:${isz}px">${IC[k]}</svg></span>${lbl?`<span class="lb" style="font-size:${fsz}px">${esc(lbl)}</span>`:''}</div>`; return; }
     if(it.type==='label'){ const fs=clamp(it.fontSize||14,12,18);
       html+=`<div class="item anno" data-id="${it.id}" style="${st};font-size:${fs}px">${esc((it.text||'').replace(/\n/g,' '))}</div>`; return; }
-    if(it.type==='desk'){ const dep=DBYID[it.deptId]; const c=dep?dep.color:'#9aa1b0'; const vac=!it.name;
-      html+=`<div class="item desk ${vac?'vacant':''}" data-id="${it.id}" style="${st};--dc:${c}"><span class="nm">${vac?'빈자리':esc(it.name)}</span></div>`; }
+    if(it.type==='desk'){ const dep=DBYID[it.deptId]; const c=dep?dep.color:'#9aa1b0'; const vac=!it.name; const resv=vac&&it.reserved;
+      if(resv){ const p=(it.reserved.from||'').split('-'); const md=p.length===3?(+p[1])+'/'+(+p[2]):'';
+        html+=`<div class="item desk resv" data-id="${it.id}" style="${st};--dc:#e8912a"><span class="nm">${esc(it.reserved.name)}</span><span class="rk">예약 ${md}~</span></div>`; }
+      else html+=`<div class="item desk ${vac?'vacant':''}" data-id="${it.id}" style="${st};--dc:${c}"><span class="nm">${vac?'빈자리':esc(it.name)}</span></div>`; }
   });
   paper.insertAdjacentHTML('beforeend',html);
   // hover tooltip (보기용)
@@ -138,42 +149,66 @@ function stats(){ const tot=STATE.employees.length, seated=STATE.items.filter(i=
   $('#stats').innerHTML=`<span><b>${tot}</b>임직원</span><span class="sep"></span><span><b>${seated}</b>배치</span><span class="sep"></span><span><b>${un}</b>미배치</span><span class="sep"></span><span class="accent"><b>${pct}%</b>배치율</span>`; }
 function empCnt(){ const c={}; STATE.employees.forEach(e=>{const d=DBYNAME[e.dept]; if(d)c[d.id]=(c[d.id]||0)+1;}); return c; }
 function legend(){ const cnt=empCnt(); const pres=STATE.depts.filter(d=>cnt[d.id]).sort((a,b)=>cnt[b.id]-cnt[a.id]);
-  $('#legend').innerHTML='<span class="llab">본부</span>'+pres.map(d=>`<span class="chip ${filter===d.id?'on':''} ${filter&&filter!==d.id?'faded':''}" data-id="${d.id}" style="--dc:${d.color}"><span class="dot"></span>${esc(d.name)}<span class="ct">${cnt[d.id]}</span></span>`).join('');
-  $$('#legend .chip').forEach(c=>c.onclick=()=>selectDept(c.dataset.id)); }
+  const av=fItems().filter(i=>i.type==='desk'&&!i.name&&!i.reserved).length;
+  const vchip=`<span class="chip vchip ${vacantMode?'on':''}" id="vacChip" title="빈자리만 강조 (다시 누르면 해제)"><span class="dot"></span>빈자리<span class="ct">${av}</span></span>`;
+  $('#legend').innerHTML='<span class="llab">본부</span>'+vchip+pres.map(d=>`<span class="chip ${filter===d.id?'on':''} ${filter&&filter!==d.id?'faded':''}" data-id="${d.id}" style="--dc:${d.color}"><span class="dot"></span>${esc(d.name)}<span class="ct">${cnt[d.id]}</span></span>`).join('');
+  $$('#legend .chip[data-id]').forEach(c=>c.onclick=()=>selectDept(c.dataset.id));
+  const vc=$('#vacChip'); if(vc)vc.onclick=toggleVacant; }
 function floccu(){ const f=curFloor(); const ds=fItems().filter(i=>i.type==='desk'); const o=ds.filter(d=>d.name).length; $('#floccu').innerHTML=`${esc(f.name)} · 재석 <b>${o}</b>/${ds.length}`; }
 function selectDept(id){ filter=filter===id?null:id;
   if(filter){ const idx=STATE.floors.findIndex(f=>STATE.items.some(i=>i.type==='desk'&&i.floorId===f.id&&i.deptId===filter&&i.name)); if(idx>=0&&idx!==fi)fi=idx; }
   render(); if(filter)fit(); paintFilter(); }
-function paintFilter(){ $$('#legend .chip').forEach(c=>{c.classList.toggle('on',c.dataset.id===filter); c.classList.toggle('faded',filter&&c.dataset.id!==filter);}); $('#clrFilter').hidden=!filter; }
-$('#clrFilter').onclick=()=>{filter=null; render(); paintFilter();};
+function paintFilter(){ $$('#legend .chip[data-id]').forEach(c=>{c.classList.toggle('on',c.dataset.id===filter); c.classList.toggle('faded',filter&&c.dataset.id!==filter);}); const vc=$('#vacChip'); if(vc)vc.classList.toggle('on',vacantMode); $('#clrFilter').hidden=!(filter||vacantMode); }
+function toggleVacant(){ vacantMode=!vacantMode; if(vacantMode){ $('#q').value=''; searchMatches=[]; } render(); paintFilter(); if(vacantMode)fit(); }
+$('#clrFilter').onclick=()=>{filter=null; vacantMode=false; render(); paintFilter();};
 
 function applyFilter(){ const q=$('#q').value.trim().toLowerCase(); let first=null;
+  const active=!!(q||filter||vacantMode);
   $$('.desk',paper).forEach(el=>{ const it=STATE.items.find(x=>x.id===el.dataset.id);
-    if(!it.name){el.classList.toggle('dim',!!(q||filter)); return;}
+    const vac=!it.name, avail=vac&&!it.reserved;
+    el.classList.remove('avail');
+    if(vac){
+      if(vacantMode){ const hit=avail&&(!filter||it.deptId===filter);
+        el.classList.toggle('hit',hit); el.classList.toggle('dim',!hit); el.classList.toggle('avail',hit); if(hit&&!first)first=it; }
+      else { el.classList.toggle('dim',active); el.classList.remove('hit'); }
+      return;
+    }
     const dep=DBYID[it.deptId]; let hit=true;
     if(q){const hay=[it.name,it.title,dep&&dep.name].filter(Boolean).join(' ').toLowerCase(); hit=hay.includes(q);}
     if(filter)hit=hit&&it.deptId===filter;
-    el.classList.toggle('hit',!!(q||filter)&&hit); el.classList.toggle('dim',!!(q||filter)&&!hit);
-    if(hit&&!first&&(q||filter))first=it; });
-  if(first&&$('#q').value.trim())centerOn(first); }
+    if(vacantMode)hit=false;
+    el.classList.toggle('hit',active&&hit); el.classList.toggle('dim',active&&!hit);
+    if(hit&&!first&&active&&!q&&!vacantMode)first=it; });
+  if(first&&(filter||vacantMode)&&!$('#q').value.trim())centerOn(first); }
 function animateView(tx,ty,s,ms){ ms=ms||430; const s0={tx:view.tx,ty:view.ty,s:view.s}, t0=performance.now(); cancelAnimationFrame(view._raf);
   const step=now=>{ let k=Math.min(1,(now-t0)/ms); k=1-Math.pow(1-k,3); view.tx=s0.tx+(tx-s0.tx)*k; view.ty=s0.ty+(ty-s0.ty)*k; view.s=s0.s+(s-s0.s)*k; applyView(); if(k<1)view._raf=requestAnimationFrame(step); };
   view._raf=requestAnimationFrame(step); }
 function centerOn(it){ const s=Math.max(view.s,1.05); const tx=wrap.clientWidth/2-(it.x+it.w/2)*s, ty=wrap.clientHeight/2-(it.y+it.h/2)*s; animateView(tx,ty,s); }
 function applyView(){ stage.style.transform=`translate(${view.tx}px,${view.ty}px) scale(${view.s})`; }
 function fit(){ const f=curFloor(); if(!f)return; const vw=wrap.clientWidth, vh=wrap.clientHeight; view.s=Math.min((vw-80)/f.w,(vh-80)/f.h,1.5); view.tx=(vw-f.w*view.s)/2; view.ty=(vh-f.h*view.s)/2; applyView(); }
-$('#q').oninput=()=>{ const q=$('#q').value.trim().toLowerCase();
-  if(q){ // 전 층에서 검색 → 일치하는 사람이 있는 층으로 자동 이동
-    for(let i=0;i<STATE.floors.length;i++){ const fid=STATE.floors[i].id;
-      const hit=STATE.items.some(it=>{ if(it.type!=='desk'||it.floorId!==fid||!it.name)return false; const dep=DBYID[it.deptId];
-        return [it.name,it.title,dep&&dep.name].filter(Boolean).join(' ').toLowerCase().includes(q); });
-      if(hit){ if(i!==fi)fi=i; break; } }
-  }
-  render(); };
+let searchMatches=[], searchIdx=0;
+function computeMatches(q){ q=(q||'').trim().toLowerCase(); if(!q)return []; const r=[];
+  STATE.floors.forEach((f,fidx)=>{ STATE.items.forEach(it=>{ if(it.type!=='desk'||it.floorId!==f.id||!it.name)return; const dep=DBYID[it.deptId];
+    if([it.name,it.title,dep&&dep.name].filter(Boolean).join(' ').toLowerCase().includes(q))r.push({fidx,id:it.id}); }); }); return r; }
+function goMatch(){ if(!searchMatches.length)return; const m=searchMatches[searchIdx]; if(m.fidx!==fi)fi=m.fidx; render();
+  const it=STATE.items.find(x=>x.id===m.id); if(it){ centerOn(it); const el=paper.querySelector(`[data-id="${m.id}"]`); if(el)el.classList.add('active'); }
+  if(searchMatches.length>1)toast(`동명 ${searchMatches.length}명 중 ${searchIdx+1}번째 · ${curFloor().name} (Enter로 다음)`); }
+$('#q').oninput=()=>{ searchMatches=computeMatches($('#q').value); searchIdx=0; if(searchMatches.length)goMatch(); else render(); };
+$('#q').addEventListener('keydown',e=>{ if(e.key==='Enter' && searchMatches.length){ e.preventDefault(); searchIdx=(searchIdx+1)%searchMatches.length; goMatch(); } });
 $('#fit').onclick=fit;
 
 /* ── 팬/줌 + 편집 드래그 ── */
+const ptrs=new Map(); let pinch=null;
+wrap.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null; });
 wrap.addEventListener('pointerdown',e=>{
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size>=2){ const v=[...ptrs.values()],a=v[0],b=v[1]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2,s:view.s,tx:view.tx,ty:view.ty}; drag=null; wrap.classList.remove('grab'); return; }
+  if(measMode){ if(e.button!==0)return; const hit=e.target.closest('[data-mi]');
+    if(hit){ const mi=STATE.items.find(x=>x.id===hit.dataset.mi); const r=wrap.getBoundingClientRect(); const cp={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s};
+      const hz=mi?((mi.orient||'h')==='h'):true; const p0=mi?{x:mi.x,y:mi.y}:{x:0,y:0}, p1=mi?(hz?{x:mi.x+mi.w,y:mi.y}:{x:mi.x,y:mi.y+mi.h}):{x:0,y:0};
+      const TOL=16/view.s, d0=Math.hypot(cp.x-p0.x,cp.y-p0.y), d1=Math.hypot(cp.x-p1.x,cp.y-p1.y); let sub='move'; if(d0<=TOL&&d0<=d1)sub='e0'; else if(d1<=TOL)sub='e1';
+      drag={mode:'measEdit',id:hit.dataset.mi,sub,sx:e.clientX,sy:e.clientY,moved:false,ox:mi?mi.x:0,oy:mi?mi.y:0,ow:mi?mi.w:0,oh:mi?mi.h:0}; wrap.setPointerCapture(e.pointerId); return; }
+    const r=wrap.getBoundingClientRect(); mstart={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; drag={mode:'meas',sx:e.clientX,sy:e.clientY}; wrap.setPointerCapture(e.pointerId); return; }
   if(editMode && e.target.classList && e.target.classList.contains('rz')){
     const id=e.target.dataset.for, it=STATE.items.find(x=>x.id===id);
     if(it){ drag={mode:'resize',id,sx:e.clientX,sy:e.clientY,ow:it.w,oh:it.h,moved:false}; wrap.setPointerCapture(e.pointerId); }
@@ -191,14 +226,26 @@ wrap.addEventListener('pointerdown',e=>{
   wrap.classList.add('grab'); wrap.setPointerCapture(e.pointerId);
   if(editMode && !el){ selected.clear(); paintSel(); }
 });
-wrap.addEventListener('pointermove',e=>{ if(!drag)return;
+wrap.addEventListener('pointermove',e=>{
+  { const p=ptrs.get(e.pointerId); if(p){ p.x=e.clientX; p.y=e.clientY; } }
+  if(pinch && ptrs.size>=2){ const v=[...ptrs.values()],a=v[0],b=v[1]; const d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2, r=wrap.getBoundingClientRect();
+    const ns=clamp(pinch.s*(d/pinch.d),.15,3), cX=(pinch.mx-r.left-pinch.tx)/pinch.s, cY=(pinch.my-r.top-pinch.ty)/pinch.s;
+    view.s=ns; view.tx=(mx-r.left)-cX*ns; view.ty=(my-r.top)-cY*ns; applyView(); if(measMode)drawMeas(); return; }
+  if(!drag)return;
+  if(drag.mode==='meas'){ const r=wrap.getBoundingClientRect(); const raw={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; const b=segStraight(mstart,raw); mprev={a:mstart,b}; drawMeas({a:mstart,b}); return; }
+  if(drag.mode==='measEdit'){ if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
+    if(drag.moved){ const it=STATE.items.find(x=>x.id===drag.id); if(it){ const dx=(e.clientX-drag.sx)/view.s, dy=(e.clientY-drag.sy)/view.s, hz=(it.orient||'h')==='h';
+      if(drag.sub==='move'){ it.x=snap(drag.ox+dx); it.y=snap(drag.oy+dy); }
+      else if(drag.sub==='e1'){ if(hz)it.w=Math.max(4,snap(drag.ow+dx)); else it.h=Math.max(4,snap(drag.oh+dy)); }
+      else { if(hz){ const end=drag.ox+drag.ow, nx=Math.min(snap(drag.ox+dx),end-4); it.x=nx; it.w=end-nx; } else { const end=drag.oy+drag.oh, ny=Math.min(snap(drag.oy+dy),end-4); it.y=ny; it.h=end-ny; } }
+      drawMeas(); } } return; }
   if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
   if(drag.mode==='pan'){ view.tx=drag.tx+(e.clientX-drag.sx); view.ty=drag.ty+(e.clientY-drag.sy); applyView(); }
   else if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(!it)return;
     const dw=(e.clientX-drag.sx)/view.s, dh=(e.clientY-drag.sy)/view.s;
     const minW=it.type==='line'?4:24, minH=it.type==='line'?4:16;
     it.w=Math.max(minW,snap(drag.ow+dw)); it.h=Math.max(minH,snap(drag.oh+dh));
-    if(it.type==='line'){ it.thickness=(it.orient||'h')==='h'?it.h:it.w; }
+    if(it.type==='line'){ const th=it.thickness||6; if((it.orient||'h')==='h')it.h=th; else it.w=th; }
     if(it.type==='label'){ it.fontSize=clamp(Math.round(it.h*0.6),10,200); }
     const el=paper.querySelector(`[data-id="${drag.id}"]`); if(el){ el.style.width=it.w+'px'; el.style.height=it.h+'px'; if(it.type==='label')el.style.fontSize=it.fontSize+'px'; }
     moveHandle(it);
@@ -209,18 +256,21 @@ wrap.addEventListener('pointermove',e=>{ if(!drag)return;
     if(drag.ids.length===1){ const it=STATE.items.find(x=>x.id===drag.ids[0]); if(it)moveHandle(it); } }
 });
 wrap.addEventListener('pointerup',e=>{
+  ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
   if(drag){
+    if(drag.mode==='meas'){ if(mprev){ const it=addMeas(mprev.a,mprev.b); mprev=null; if(it)editVal(it.id); } drawMeas(); wrap.classList.remove('grab'); drag=null; return; }
+    if(drag.mode==='measEdit'){ if(drag.moved){ markDirty(); pushHist(); drawMeas(); } else editVal(drag.id); wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='item'){
-      if(drag.moved){ markDirty(); pushHist(); }
+      if(drag.moved){ drag.ids.forEach(id=>{ const it=STATE.items.find(x=>x.id===id); if(it&&it.type==='line')snapLine(it); }); markDirty(); pushHist(); render(); }
       else { const id=drag.ids[0], now=Date.now();  // 이동 없이 탭 → 더블탭이면 편집
         if(lastTap && lastTap.id===id && now-lastTap.t<350){ const it=STATE.items.find(x=>x.id===id); lastTap=null; if(it)editItem(it); }
         else lastTap={id,t:now}; }
     }
-    if(drag.mode==='resize'){ markDirty(); pushHist(); render(); }
-    if(drag.mode==='pan'&&!drag.moved&&drag.el){ const it=STATE.items.find(x=>x.id===drag.el.dataset.id); if(it&&it.name)openPanel(it.id); }
+    if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(it&&it.type==='line')snapLine(it); markDirty(); pushHist(); render(); }
+    if(drag.mode==='pan'&&!drag.moved&&drag.el){ const it=STATE.items.find(x=>x.id===drag.el.dataset.id); if(it){ if(it.name)openPanel(it.id); else openReserve(it); } }
   }
   wrap.classList.remove('grab'); drag=null; });
-wrap.addEventListener('wheel',e=>{e.preventDefault(); const fac=e.deltaY<0?1.1:1/1.1, ns=clamp(view.s*fac,.22,2.8), r=wrap.getBoundingClientRect(); const cx=e.clientX-r.left,cy=e.clientY-r.top; view.tx=cx-(cx-view.tx)*(ns/view.s); view.ty=cy-(cy-view.ty)*(ns/view.s); view.s=ns; applyView();},{passive:false});
+wrap.addEventListener('wheel',e=>{e.preventDefault(); const fac=e.deltaY<0?1.1:1/1.1, ns=clamp(view.s*fac,.22,2.8), r=wrap.getBoundingClientRect(); const cx=e.clientX-r.left,cy=e.clientY-r.top; view.tx=cx-(cx-view.tx)*(ns/view.s); view.ty=cy-(cy-view.ty)*(ns/view.s); view.s=ns; applyView(); if(measMode)drawMeas();},{passive:false});
 
 function paintSel(){
   $$('.rz',paper).forEach(h=>h.remove());
@@ -239,9 +289,37 @@ function openPanel(id){ const it=STATE.items.find(x=>x.id===id); if(!it||!it.nam
     <div class="meta"><div class="mrow"><span class="k">직급</span><span class="v">${esc(it.title||'—')}</span></div><div class="mrow"><span class="k">층</span><span class="v">${esc(curFloor().name)}</span></div>${it.seatNo?`<div class="mrow"><span class="k">좌석</span><span class="v">${esc(it.seatNo)}</span></div>`:''}</div>`;
   $('#pclose').onclick=closePanel; $('#panel').classList.add('on'); $('#panel').setAttribute('aria-hidden','false'); $('#scrim').classList.add('on'); }
 function closePanel(){ activeId=null; $$('.desk',paper).forEach(el=>el.classList.remove('active')); $('#panel').classList.remove('on'); $('#panel').setAttribute('aria-hidden','true'); if($('#modalback').hidden)$('#scrim').classList.remove('on'); }
+
+/* 좌석 사전 예약 (직원 셀프) */
+function openReserve(it){
+  const today=new Date().toISOString().slice(0,10);
+  if(it.reserved){ const r=it.reserved;
+    openModal(`<h3>예약된 자리</h3>
+      <div style="padding:4px 0"><div style="font-size:20px;font-weight:800">${esc(r.name)}</div><div style="color:var(--muted);font-size:13px;margin-top:4px">${esc(r.dept||'')} · <b style="color:#c07f1a">${esc(r.from)}부터 사용 예정</b></div></div>
+      <div style="margin:12px 0 0;padding:12px 14px;background:var(--line-2);border-radius:12px;font-size:12.5px;color:var(--muted)">이미 예약된 자리입니다.${editMode?'':' 취소는 관리자에게 요청하세요.'}</div>
+      <div class="actions">${editMode?'<button class="btn danger" id="rv_cancel">예약 취소</button><span style="flex:1"></span>':''}<button class="btn primary" id="m_close">닫기</button></div>`);
+    if(editMode)$('#rv_cancel').onclick=()=>{ if(!confirm('이 예약을 취소할까요?'))return; delete it.reserved; closeModal(); markDirty(); pushHist(); render(); toast('예약 취소됨 (저장 필요)'); };
+    $('#m_close').onclick=closeModal; return; }
+  const dl=[...new Set(STATE.employees.map(e=>e.name))].map(n=>`<option value="${esc(n)}">`).join('');
+  const dd=STATE.depts.map(d=>`<option value="${esc(d.name)}">`).join('');
+  openModal(`<h3>이 자리 예약하기</h3>
+    <label>이름</label><input id="rv_name" list="rvnames" placeholder="이름" autocomplete="off"/><datalist id="rvnames">${dl}</datalist>
+    <label>부서</label><input id="rv_dept" list="rvdepts" placeholder="부서 (선택)"/><datalist id="rvdepts">${dd}</datalist>
+    <label>사용 시작일</label><input id="rv_from" type="date" min="${today}" value="${today}"/>
+    <div class="actions"><button class="btn" id="m_cancel">취소</button><button class="btn primary" id="rv_ok">예약</button></div>`);
+  $('#rv_name').oninput=()=>{ const e=STATE.employees.find(x=>x.name===$('#rv_name').value.trim()); if(e&&e.dept)$('#rv_dept').value=e.dept; };
+  $('#m_cancel').onclick=closeModal;
+  $('#rv_ok').onclick=async()=>{ const name=$('#rv_name').value.trim(), dept=$('#rv_dept').value.trim(), from=$('#rv_from').value;
+    if(!name)return alert('이름을 입력하세요'); if(!from)return alert('사용 시작일을 선택하세요');
+    let res,j; try{ res=await fetch('/api/reserve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:it.id,name,dept,from})}); j=await res.json().catch(()=>({})); }catch(e){ return alert('예약 실패: 네트워크'); }
+    if(res.status===409){ alert(j.reserved?`이미 ${j.reserved.name}님이 예약한 자리입니다.`:'이미 예약(또는 사용) 중인 자리입니다.'); closeModal(); STATE=await loadState(); refreshMaps(); render(); return; }
+    if(!res.ok)return alert('예약 실패: '+(j.error||res.status));
+    closeModal(); STATE=await loadState(); refreshMaps(); render(); toast(name+'님 · '+from+'부터 예약되었습니다'); };
+}
 $('#scrim').onclick=()=>{closePanel(); closeModal();};
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closePanel();closeModal();}
+  if(e.key==='Escape'){ closePanel(); closeModal();
+    if(measMode){ measMode=false; wrap.classList.remove('measuring'); $('#measBtn').classList.remove('on'); clearMeasure(); } }
   const typing=/input|select|textarea/i.test(e.target.tagName);
   const mod=e.ctrlKey||e.metaKey;
   if(mod && e.key.toLowerCase()==='s'){ e.preventDefault(); if(editMode)save(); return; }
@@ -285,7 +363,60 @@ function addItem(type){ const f=curFloor(); if(!f)return;
 }
 $$('[data-add]').forEach(b=>b.onclick=()=>addItem(b.dataset.add));
 
-function editItem(it){ if(it.type==='desk')editDesk(it); else if(it.type==='facility')editFacility(it); else if(it.type==='label')editLabel(it); else if(it.type==='line')editLine(it); }
+/* 좌석 N×M 일괄 생성 */
+$('#addPod').onclick=()=>{ const f=curFloor(); if(!f)return; const inp=prompt('가로 개수 × 세로 개수  예: 4x3','4x3'); if(!inp)return;
+  const p=inp.toLowerCase().split(/[x×,\s]+/).map(Number); const cols=p[0]||1, rows=p[1]||1; if(cols<1||rows<1||cols*rows>300)return alert('1~300석 범위로 입력하세요');
+  const cx=snap((wrap.clientWidth/2-view.tx)/view.s), cy=snap((wrap.clientHeight/2-view.ty)/view.s); const W=80,H=68,GX=8,GY=8, dep=(STATE.depts[0]||{}).id||null;
+  selected.clear();
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const it={id:uid(),floorId:f.id,type:'desk',x:cx+c*(W+GX),y:cy+r*(H+GY),w:W,h:H,name:'',deptId:dep,title:'',seatNo:'',occupied:false,z:2}; STATE.items.push(it); selected.add(it.id); }
+  markDirty(); pushHist(); render(); paintSel(); toast(cols*rows+'석 생성'); };
+
+/* 선택 정렬 · 균등배분 */
+$('#alignBtn').onclick=()=>{ if(selected.size<2)return toast('2개 이상 선택하세요');
+  openModal(`<h3>정렬 · 배분 <span style="font-size:12px;color:var(--muted);font-weight:600">· ${selected.size}개</span></h3>
+    <div class="alnrow"><button class="btn sm" data-al="left">⬅ 왼쪽</button><button class="btn sm" data-al="hcenter">↔ 가운데</button><button class="btn sm" data-al="right">➡ 오른쪽</button></div>
+    <div class="alnrow"><button class="btn sm" data-al="top">⬆ 위</button><button class="btn sm" data-al="vcenter">↕ 가운데</button><button class="btn sm" data-al="bottom">⬇ 아래</button></div>
+    <div class="alnrow"><button class="btn sm" data-al="disth">↔ 가로 균등배분</button><button class="btn sm" data-al="distv">↕ 세로 균등배분</button></div>
+    <div class="actions"><button class="btn primary" id="m_close">닫기</button></div>`);
+  $$('[data-al]',$('#modal')).forEach(b=>b.onclick=()=>alignSel(b.dataset.al)); $('#m_close').onclick=closeModal; };
+function alignSel(mode){ const its=[...selected].map(id=>STATE.items.find(x=>x.id===id)).filter(Boolean); if(its.length<2)return;
+  const L=Math.min(...its.map(i=>i.x)),R=Math.max(...its.map(i=>i.x+i.w)),T=Math.min(...its.map(i=>i.y)),B=Math.max(...its.map(i=>i.y+i.h)),CX=(L+R)/2,CY=(T+B)/2;
+  if(mode==='left')its.forEach(i=>i.x=Math.round(L)); if(mode==='right')its.forEach(i=>i.x=Math.round(R-i.w)); if(mode==='hcenter')its.forEach(i=>i.x=Math.round(CX-i.w/2));
+  if(mode==='top')its.forEach(i=>i.y=Math.round(T)); if(mode==='bottom')its.forEach(i=>i.y=Math.round(B-i.h)); if(mode==='vcenter')its.forEach(i=>i.y=Math.round(CY-i.h/2));
+  if(mode==='disth'){ const s=its.slice().sort((a,b)=>a.x-b.x); const mn=s[0].x,mx=s[s.length-1].x,st=(mx-mn)/(s.length-1); s.forEach((i,k)=>i.x=Math.round(mn+st*k)); }
+  if(mode==='distv'){ const s=its.slice().sort((a,b)=>a.y-b.y); const mn=s[0].y,mx=s[s.length-1].y,st=(mx-mn)/(s.length-1); s.forEach((i,k)=>i.y=Math.round(mn+st*k)); }
+  markDirty(); pushHist(); render(); paintSel(); }
+
+/* 층 복제 */
+function dupFloor(){ const f=curFloor(); if(!f)return; const nf={id:uid(),name:f.name+' 복사',w:f.w,h:f.h}; if(f.mX)nf.mX=f.mX; if(f.mY)nf.mY=f.mY; STATE.floors.push(nf);
+  STATE.items.filter(i=>i.floorId===f.id).forEach(i=>STATE.items.push({...i,id:uid(),floorId:nf.id}));
+  markDirty(); pushHist(); tabs(); toast(f.name+' 복제됨'); }
+
+/* 백업 복원 */
+$('#restoreBtn').onclick=openBackups;
+async function openBackups(){ let idx=[]; try{ idx=((await fetch('/api/backups',{cache:'no-store'}).then(r=>r.json()))||{}).backups||[]; }catch(e){}
+  openModal(`<h3>백업 복원 <span style="font-size:12px;color:var(--muted);font-weight:600">· ${idx.length}개</span></h3>`+
+    (idx.length?`<div class="baklist">${idx.map(t=>`<div class="bakrow"><span>${new Date(t).toLocaleString('ko-KR')}</span><button class="btn sm" data-t="${t}">이 시점으로 복원</button></div>`).join('')}</div>`:'<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px">백업 없음 (저장할 때마다 자동 생성됩니다)</div>')+
+    `<div class="actions"><button class="btn primary" id="m_close">닫기</button></div>`);
+  $$('.bakrow button',$('#modal')).forEach(b=>b.onclick=async()=>{ if(!confirm('이 시점으로 되돌릴까요? (현재 상태도 백업됩니다)'))return;
+    const r=await fetch('/api/backups',{method:'POST',headers:{'Content-Type':'application/json','x-edit-pass':adminPw},body:JSON.stringify({t:+b.dataset.t})});
+    if(r.status===401)return alert('편집 권한이 없습니다.'); if(!r.ok)return alert('복원 실패');
+    closeModal(); STATE=await loadState(); refreshMaps(); dirty=false; $('#dirty').hidden=true; fi=Math.min(fi,STATE.floors.length-1); tabs(); render(); fit(); pushHist(); toast('복원되었습니다'); });
+  $('#m_close').onclick=closeModal; }
+
+/* 선 끝점 스냅: 가까운 다른 선의 축/끝점에 붙여 코너를 맞물리게 */
+function snapLine(it){ if(it.type!=='line')return; const TOL=14, horiz=(it.orient||'h')==='h';
+  const others=STATE.items.filter(i=>i.type==='line'&&i.floorId===it.floorId&&i!==it);
+  const X=[], Y=[]; others.forEach(o=>{ const oh=(o.orient||'h')==='h'; if(oh){ Y.push(o.y+o.h/2); X.push(o.x); X.push(o.x+o.w); } else { X.push(o.x+o.w/2); Y.push(o.y); Y.push(o.y+o.h); } });
+  const near=(v,arr)=>{ let b=null,d=TOL+1; arr.forEach(a=>{const dd=Math.abs(a-v); if(dd<d){d=dd;b=a;}}); return b; };
+  if(horiz){ const ny=near(it.y+it.h/2,Y); if(ny!=null)it.y=Math.round(ny-it.h/2);
+    const n1=near(it.x,X); if(n1!=null){ it.w=Math.round(it.w+(it.x-n1)); it.x=Math.round(n1); }
+    const n2=near(it.x+it.w,X); if(n2!=null)it.w=Math.round(n2-it.x); }
+  else { const nx=near(it.x+it.w/2,X); if(nx!=null)it.x=Math.round(nx-it.w/2);
+    const m1=near(it.y,Y); if(m1!=null){ it.h=Math.round(it.h+(it.y-m1)); it.y=Math.round(m1); }
+    const m2=near(it.y+it.h,Y); if(m2!=null)it.h=Math.round(m2-it.y); }
+  if(it.w<2)it.w=2; if(it.h<2)it.h=2; }
+function editItem(it){ if(it.type==='desk'){ if(it.reserved&&!it.name)openReserve(it); else editDesk(it); } else if(it.type==='facility')editFacility(it); else if(it.type==='label')editLabel(it); else if(it.type==='line')editLine(it); }
 
 function editFacility(it){
   openModal(`<h3>시설</h3><label>이름 (아이콘 자동 적용)</label><input id="f_lbl" value="${esc(it.label||'')}" placeholder="예: 복합기 · 화장실 · 계단 · 탕비실"/>
@@ -455,13 +586,15 @@ function manageFloor(){
   const row=f=>`<div class="flrow" data-id="${f.id}"><input class="fn" value="${esc(f.name||'')}"/><input class="fw" type="number" value="${f.w}"/><span>×</span><input class="fh" type="number" value="${f.h}"/><button class="rm" title="삭제">✕</button></div>`;
   openModal(`<h3>층 관리</h3><div class="flrlist" id="flrlist">${STATE.floors.map(row).join('')}</div>
     <button class="btn sm" id="fl_add" style="margin-top:8px">＋ 층 추가</button>
+    <button class="btn sm" id="fl_dup" style="margin-top:8px">📄 현재 층 복제</button>
     <div class="actions"><button class="btn" id="m_cancel">취소</button><button class="btn primary" id="m_ok">저장</button></div>`);
   const bindRm=()=>$$('#flrlist .rm',$('#modal')).forEach(b=>b.onclick=()=>{ if($$('#flrlist .flrow',$('#modal')).length<=1)return alert('최소 1개 층이 필요합니다.'); b.closest('.flrow').remove(); });
   bindRm();
   $('#fl_add').onclick=()=>{ const div=document.createElement('div'); div.className='flrow'; div.dataset.id='n'+uid();
     div.innerHTML=`<input class="fn" value="새 층"/><input class="fw" type="number" value="1400"/><span>×</span><input class="fh" type="number" value="800"/><button class="rm">✕</button>`; $('#flrlist').appendChild(div); bindRm(); };
+  $('#fl_dup').onclick=()=>{ closeModal(); dupFloor(); };
   $('#m_cancel').onclick=closeModal;
-  $('#m_ok').onclick=()=>{ const nf=$$('#flrlist .flrow',$('#modal')).map(r=>({id:r.dataset.id,name:r.querySelector('.fn').value.trim()||'층',w:+r.querySelector('.fw').value||1400,h:+r.querySelector('.fh').value||800}));
+  $('#m_ok').onclick=()=>{ const nf=$$('#flrlist .flrow',$('#modal')).map(r=>{ const old=STATE.floors.find(f=>f.id===r.dataset.id)||{}; return {id:r.dataset.id,name:r.querySelector('.fn').value.trim()||'층',w:+r.querySelector('.fw').value||1400,h:+r.querySelector('.fh').value||800, ...(old.mX?{mX:old.mX}:{}), ...(old.mY?{mY:old.mY}:{})}; });
     const ids=new Set(nf.map(f=>f.id)); STATE.items=STATE.items.filter(i=>ids.has(i.floorId)); STATE.floors=nf; if(fi>=nf.length)fi=0;
     closeModal(); markDirty(); pushHist(); tabs(); render(); fit(); };
 }
@@ -507,6 +640,34 @@ function printMap(){ const cv=renderExportCanvas(); if(!cv)return; const url=cv.
   const w=window.open('','_blank'); if(!w)return alert('팝업이 차단되었습니다. 허용 후 다시 시도하세요.');
   w.document.write(`<html><head><title>자리배치도 ${esc(curFloor().name)}</title><style>@page{size:landscape;margin:10mm}body{margin:0}img{width:100%}</style></head><body><img src="${url}" onload="setTimeout(function(){window.print();},150)"/></body></html>`); w.document.close(); }
 $('#pngBtn').onclick=exportPNG; $('#printBtn').onclick=printMap;
+
+/* 치수선: 선 긋고 놓으면 길이(m) 입력→저장 · 📏로 전체 보이기/숨기기 */
+function segStraight(a,b){ return Math.abs(b.x-a.x)>=Math.abs(b.y-a.y) ? {x:b.x,y:a.y} : {x:a.x,y:b.y}; }
+function autoLen(a,b){ const f=curFloor(); const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; const sc=hz?f.mX:f.mY; return sc?(len*sc).toFixed(2)+' m':Math.round(len)+' px'; }
+function drawMeas(preview){ if(!mlayer)return; if(!measMode){ mlayer.innerHTML=''; return; }
+  const inv=1/view.s, f=curFloor(); if(!f){ mlayer.innerHTML=''; return; }
+  const seg=(a,b,id,prev,val)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2; const text=(val!=null)?(val+' m'):autoLen(a,b); const manual=val!=null;
+    return `<g ${id?`data-mi="${id}"`:''}>`+
+      (id?`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="transparent" stroke-width="${18*inv}" style="pointer-events:stroke;cursor:move"/>`:'')+
+      `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--accent)" stroke-width="${2*inv}" ${prev?`stroke-dasharray="${6*inv} ${4*inv}" opacity="0.7"`:''}/>`+
+      `<circle cx="${a.x}" cy="${a.y}" r="${4*inv}" fill="#fff" stroke="var(--accent)" stroke-width="${2*inv}"/><circle cx="${b.x}" cy="${b.y}" r="${4*inv}" fill="#fff" stroke="var(--accent)" stroke-width="${2*inv}"/>`+
+      `<text x="${mx}" y="${my}" dy="${-7*inv}" text-anchor="middle" font-size="${13*inv}" font-weight="800" fill="${manual?'#111827':'var(--accent)'}" stroke="#fff" stroke-width="${3.5*inv}" paint-order="stroke" style="stroke-linejoin:round">${text}</text></g>`; };
+  let s=''; STATE.items.filter(i=>i.type==='meas'&&i.floorId===f.id).forEach(mi=>{ const h=(mi.orient||'h')==='h'; const a={x:mi.x,y:mi.y}, b=h?{x:mi.x+mi.w,y:mi.y}:{x:mi.x,y:mi.y+mi.h}; s+=seg(a,b,mi.id,false,mi.val); });
+  if(preview)s+=seg(preview.a,preview.b,null,true,null); mlayer.innerHTML=s; }
+function addMeas(a,b){ const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; if(len<6)return null;
+  const it={id:uid(),floorId:curId(),type:'meas',orient:hz?'h':'v'};
+  if(hz){ it.x=Math.round(Math.min(a.x,b.x)); it.y=Math.round(a.y); it.w=Math.round(dx); it.h=0; }
+  else { it.x=Math.round(a.x); it.y=Math.round(Math.min(a.y,b.y)); it.w=0; it.h=Math.round(dy); }
+  STATE.items.push(it); markDirty(); pushHist(); drawMeas(); return it; }
+function editVal(id){ const it=STATE.items.find(x=>x.id===id); if(!it)return; const f=curFloor(); const hz=(it.orient||'h')==='h'; const len=hz?it.w:it.h;
+  const auto=(hz?f.mX:f.mY)?(len*(hz?f.mX:f.mY)).toFixed(2):''; const cur=it.val!=null?it.val:auto;
+  const inp=prompt('이 선의 실제 길이(m) 입력  ·  비우면 자동계산', cur); if(inp==null)return; const t=String(inp).trim();
+  if(t===''){ delete it.val; } else { const m=parseFloat(t); if(!(m>0))return alert('숫자로 입력하세요'); it.val=m; }
+  markDirty(); pushHist(); drawMeas(); }
+function clearMeasure(){ if(mlayer)mlayer.innerHTML=''; }
+$('#measBtn').onclick=()=>{ measMode=!measMode; $('#measBtn').classList.toggle('on',measMode); wrap.classList.toggle('measuring',measMode); drawMeas();
+  if(measMode)toast('선 긋기 → 클릭해서 실제 길이 입력 · 끝점 드래그=늘리기 · 가운데=이동 · 우클릭=삭제'); };
+if(mlayer){ mlayer.addEventListener('contextmenu',e=>{ const g=e.target.closest('[data-mi]'); if(g){ e.preventDefault(); STATE.items=STATE.items.filter(x=>x.id!==g.dataset.mi); markDirty(); pushHist(); drawMeas(); } }); }
 
 async function save(){ try{ STATE.updatedAt=Date.now();
     const r=await fetch('/api/state',{method:'PUT',headers:{'Content-Type':'application/json','x-edit-pass':adminPw},body:JSON.stringify(STATE)});

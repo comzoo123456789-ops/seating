@@ -13,6 +13,7 @@
     <div class="spacer"></div>
     <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="q" type="search" placeholder="이름 · 부서 · 직급 검색" autocomplete="off"/></div>
     <button class="iconbtn" id="fit" title="화면 맞춤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m0 8v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3m0-8V5a2 2 0 0 0-2-2h-3"/></svg></button>
+    <button class="iconbtn" id="measBtn" title="치수선 (선 긋고 길이 입력 · 전체 보기/숨기기)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="7.5" width="19" height="9" rx="1.5" transform="rotate(-20 12 12)"/><path d="M6.5 9.7v2M9.7 8.5v3M12.9 7.4v2M16.1 6.2v3" transform="rotate(-20 12 12)"/></svg></button>
     <button class="iconbtn" id="pngBtn" title="이미지(PNG) 저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
     <button class="iconbtn" id="printBtn" title="인쇄"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
     <button class="btn" id="editBtn">관리자 편집</button>
@@ -27,13 +28,16 @@
       <button class="btn sm" data-add="facility">＋시설</button>
       <button class="btn sm" data-add="label">＋텍스트</button>
       <button class="btn sm" data-add="line">＋선</button>
+      <button class="btn sm" id="addPod">＋좌석✕N</button>
       <span class="vsep"></span>
       <button class="btn sm" id="mgrEmp">👤 임직원</button>
       <button class="btn sm" id="mgrUnseat">🧑‍💼 미배치</button>
       <button class="btn sm" id="mgrDept">🏷 부서</button>
       <button class="btn sm" id="mgrFloor">🏢 층</button>
+      <button class="btn sm" id="restoreBtn">🕘 복원</button>
       <button class="btn sm" id="undoBtn" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
       <button class="btn sm" id="redoBtn" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
+      <button class="btn sm" id="alignBtn">↔ 정렬</button>
       <button class="btn sm danger" id="delSel" disabled>삭제</button>
       <span class="vsep"></span>
       <span class="dirty" id="dirty" hidden>● 저장 안 됨</span>
@@ -44,7 +48,7 @@
   </div>
 
   <div class="wrap" id="wrap">
-    <div class="stage" id="stage"><div class="paper" id="paper"><svg class="walls" id="walls"></svg></div></div>
+    <div class="stage" id="stage"><div class="paper" id="paper"><svg class="walls" id="walls"></svg><svg class="dlayer" id="dlayer"></svg><svg class="mlayer" id="mlayer"></svg></div></div>
     <div class="hint" id="hint">드래그: 이동 · 휠: 확대/축소 · 좌석 클릭: 상세</div>
   </div>
   <div class="legend" id="legend"></div>

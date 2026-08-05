@@ -35,6 +35,20 @@ async function save({ request, env }) {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+  // ── 자동 백업: 덮어쓰기 전 현재 상태를 보관 (최근 20개, 30일 보관) ──
+  try {
+    const cur = await env.SEATING_KV.get(KEY);
+    if (cur) {
+      const ts = Date.now();
+      await env.SEATING_KV.put('bak:' + ts, cur, { expirationTtl: 60 * 60 * 24 * 30 });
+      let idx = JSON.parse((await env.SEATING_KV.get('bakindex')) || '[]');
+      idx.unshift(ts);
+      const drop = idx.slice(20);
+      idx = idx.slice(0, 20);
+      await env.SEATING_KV.put('bakindex', JSON.stringify(idx));
+      for (const d of drop) await env.SEATING_KV.delete('bak:' + d);
+    }
+  } catch (e) { /* 백업 실패해도 저장은 진행 */ }
   await env.SEATING_KV.put(KEY, body);
   return new Response('{"ok":true}', {
     headers: { 'Content-Type': 'application/json' },
