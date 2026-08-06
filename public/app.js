@@ -248,9 +248,14 @@ wrap.addEventListener('pointerdown',e=>{
     selected.forEach(i=>{const o=STATE.items.find(x=>x.id===i); drag.orig[i]={x:o.x,y:o.y};});
     wrap.setPointerCapture(e.pointerId); return;
   }
+  if(editMode && !el && !spaceDown){  // 빈 공간 드래그 = 영역 선택(마퀴)
+    const r=wrap.getBoundingClientRect(); const x0=(e.clientX-r.left-view.tx)/view.s, y0=(e.clientY-r.top-view.ty)/view.s;
+    if(!e.shiftKey)selected.clear();
+    const mb=document.createElement('div'); mb.className='marquee'; mb.style.cssText=`left:${x0}px;top:${y0}px;width:0;height:0`; paper.appendChild(mb);
+    drag={mode:'marquee',sx:e.clientX,sy:e.clientY,x0,y0,box:mb,moved:false}; paintSel(); wrap.setPointerCapture(e.pointerId); return;
+  }
   drag={mode:'pan',sx:e.clientX,sy:e.clientY,tx:view.tx,ty:view.ty,moved:false,el:(!editMode&&el&&el.classList.contains('desk'))?el:null};
   wrap.classList.add('grab'); wrap.setPointerCapture(e.pointerId);
-  if(editMode && !el){ selected.clear(); paintSel(); }
 });
 wrap.addEventListener('pointermove',e=>{
   { const p=ptrs.get(e.pointerId); if(p){ p.x=e.clientX; p.y=e.clientY; } }
@@ -265,6 +270,9 @@ wrap.addEventListener('pointermove',e=>{
       else if(drag.sub==='e1'){ if(hz)it.w=Math.max(4,snap(drag.ow+dx)); else it.h=Math.max(4,snap(drag.oh+dy)); }
       else { if(hz){ const end=drag.ox+drag.ow, nx=Math.min(snap(drag.ox+dx),end-4); it.x=nx; it.w=end-nx; } else { const end=drag.oy+drag.oh, ny=Math.min(snap(drag.oy+dy),end-4); it.y=ny; it.h=end-ny; } }
       drawMeas(); } } return; }
+  if(drag.mode==='marquee'){ const r=wrap.getBoundingClientRect(); const x1=(e.clientX-r.left-view.tx)/view.s, y1=(e.clientY-r.top-view.ty)/view.s;
+    if(drag.box){ drag.box.style.left=Math.min(drag.x0,x1)+'px'; drag.box.style.top=Math.min(drag.y0,y1)+'px'; drag.box.style.width=Math.abs(x1-drag.x0)+'px'; drag.box.style.height=Math.abs(y1-drag.y0)+'px'; }
+    if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true; return; }
   if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
   if(drag.mode==='pan'){ view.tx=drag.tx+(e.clientX-drag.sx); view.ty=drag.ty+(e.clientY-drag.sy); applyView(); }
   else if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(!it)return;
@@ -296,6 +304,11 @@ wrap.addEventListener('pointermove',e=>{
 wrap.addEventListener('pointerup',e=>{
   ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
   if(drag){
+    if(drag.mode==='marquee'){ if(drag.box)drag.box.remove();
+      if(drag.moved){ const r=wrap.getBoundingClientRect(); const x1=(e.clientX-r.left-view.tx)/view.s, y1=(e.clientY-r.top-view.ty)/view.s;
+        const L=Math.min(drag.x0,x1),T=Math.min(drag.y0,y1),R=Math.max(drag.x0,x1),B=Math.max(drag.y0,y1);
+        fItems().forEach(it=>{ if(it.type==='meas')return; if(it.x<R&&it.x+it.w>L&&it.y<B&&it.y+it.h>T)selected.add(it.id); }); paintSel(); }
+      wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='meas'){ if(mprev){ addMeas(mprev.a,mprev.b); mprev=null; } drawMeas(); wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='measEdit'){ if(drag.moved){ markDirty(); pushHist(); drawMeas(); } else editVal(drag.id); wrap.classList.remove('grab'); drag=null; return; }
     if(drag.mode==='item'){
