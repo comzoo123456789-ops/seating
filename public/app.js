@@ -396,6 +396,7 @@ function addItem(type){ const f=curFloor(); if(!f)return;
   if(type==='facility')Object.assign(it,{w:70,h:60,label:'시설'});
   if(type==='label')Object.assign(it,{w:140,h:36,text:'텍스트',fontSize:16,bold:true});
   if(type==='line')Object.assign(it,{orient:'h',w:180,h:6,thickness:6,color:'#aab0bd',lineStyle:'solid'});
+  if(type==='wall'){ it.type='line'; Object.assign(it,{orient:'h',w:240,h:9,thickness:9,color:'#3a404c',lineStyle:'solid'}); }
   if(type==='rect')Object.assign(it,{w:120,h:80,stroke:'#333333',fill:'',sw:2});
   if(type==='ellipse')Object.assign(it,{w:90,h:90,stroke:'#333333',fill:'',sw:2});
   if(type==='door')Object.assign(it,{w:70,h:70,hinge:0,flip:false,color:'#555555'});
