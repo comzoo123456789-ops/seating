@@ -125,10 +125,7 @@ button{font-family:inherit}
 .desk.dim{opacity:.1} .desk.hit{background:color-mix(in srgb,var(--dc) 14%, var(--paper)); border-color:color-mix(in srgb,var(--dc) 60%, var(--line)); box-shadow:0 0 0 1px color-mix(in srgb,var(--dc) 42%, transparent), var(--shadow-lift); transform:translateY(-2px); z-index:9}
 .desk.active{background:color-mix(in srgb,var(--accent) 10%, var(--paper)); border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-weak), var(--shadow-lift); z-index:10}
 /* 책상+의자 표시 (의자 = 앞쪽 반원) */
-.desk::after{content:""; position:absolute; background:color-mix(in srgb,var(--dc) 30%,#fff); border:1px solid color-mix(in srgb,var(--dc) 45%,var(--line))}
-.desk[data-o="h"]::after{left:50%; bottom:2px; transform:translateX(-50%); width:44%; height:6px; border-radius:0 0 7px 7px}
-.desk[data-o="v"]::after{top:50%; right:2px; transform:translateY(-50%); height:44%; width:6px; border-radius:0 7px 7px 0}
-.desk.resv::after,.desk.vacant::after{display:none}
+.desk::after{display:none}
 .desk.furn{background:#fff; border:1.5px solid #7a828f}
 .desk.furn::before{background:#7a828f}
 .desk.avail{opacity:1!important; background:color-mix(in srgb,#12a150 15%, var(--paper))!important; border:1px solid color-mix(in srgb,#12a150 62%, var(--line))!important; box-shadow:0 0 0 1px color-mix(in srgb,#12a150 42%, transparent), var(--shadow-lift)!important; transform:translateY(-1px)}
