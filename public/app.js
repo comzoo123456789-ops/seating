@@ -562,8 +562,9 @@ function undo(){ if(hi>0)restore(hi-1); }
 function redo(){ if(hi<history.length-1)restore(hi+1); }
 function copySel(){ if(!selected.size)return; clip=[...selected].map(id=>STATE.items.find(x=>x.id===id)).filter(Boolean).map(o=>JSON.parse(JSON.stringify(o))); toast(clip.length+'개 복사됨'); }
 function pasteClip(){ if(!clip.length)return; selected.clear();
-  clip.forEach(c=>{ const it=JSON.parse(JSON.stringify(c)); it.id=uid(); it.floorId=curId(); it.x=snap(it.x+24); it.y=snap(it.y+24); clampToFloor(it);
-    STATE.items.push(it); selected.add(it.id); });
+  clip.forEach(c=>{ const it=JSON.parse(JSON.stringify(c)); it.id=uid(); it.floorId=curId(); it.x=snap(it.x+24); it.y=snap(it.y+24);
+    if(it.type==='desk'){ const sc=(curFloor().mX)||0.0125, dn=it.dn||1, L=Math.round((it.mmU||1400)/1000*dn/sc), Sh=Math.round((it.mmD||700)/1000/sc); if((it.orient||'h')==='v'){it.w=Sh;it.h=L;}else{it.w=L;it.h=Sh;} }
+    clampToFloor(it); STATE.items.push(it); selected.add(it.id); });
   markDirty(); pushHist(); render(); paintSel(); toast(clip.length+'개 붙여넣기'); }
 if($('#undoBtn'))$('#undoBtn').onclick=undo; if($('#redoBtn'))$('#redoBtn').onclick=redo;
 
