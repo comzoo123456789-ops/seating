@@ -378,6 +378,9 @@ document.addEventListener('keydown',e=>{
   const mod=e.ctrlKey||e.metaKey;
   if(e.code==='Space' && !typing && !mod){ if(!spaceDown){ spaceDown=true; wrap.classList.add('spacepan'); } e.preventDefault(); return; }  // 스페이스바=화면이동 모드
   if(mod && e.key.toLowerCase()==='s'){ e.preventDefault(); if(editMode)save(); return; }
+  if(mod && e.key==='1'){ e.preventDefault(); $('#measBtn').click(); return; }           // 측정 켜기/끄기
+  if(mod && e.key==='2' && editMode){ e.preventDefault(); addItem('line'); return; }       // 선
+  if(mod && e.key==='3' && editMode){ e.preventDefault(); addItem('desk'); return; }       // 좌석
   if(!editMode || !$('#modalback').hidden) return;   // 편집중 + 모달 안 열림일 때만
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key) && selected.size && !typing){ e.preventDefault();  // 방향키 미세조절
     const s=e.shiftKey?10:1; let dx=0,dy=0; if(e.key==='ArrowLeft')dx=-s; else if(e.key==='ArrowRight')dx=s; else if(e.key==='ArrowUp')dy=-s; else if(e.key==='ArrowDown')dy=s;
