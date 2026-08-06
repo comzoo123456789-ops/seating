@@ -97,7 +97,9 @@ button{font-family:inherit}
 .dim.v .dbar::after{bottom:0; left:-6px; height:2px; width:14px}
 .dim .dlbl{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--paper); padding:1px 5px; border-radius:5px; font-size:12px; font-weight:800; color:var(--accent); white-space:nowrap; box-shadow:0 0 0 1px var(--line)}
 .editing .item{pointer-events:auto}
-.rz{position:absolute; width:14px; height:14px; background:var(--accent); border:2px solid #fff; border-radius:4px; cursor:nwse-resize; z-index:30; pointer-events:auto; box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.rz{position:absolute; width:12px; height:12px; background:var(--accent); border:2px solid #fff; border-radius:3px; z-index:30; pointer-events:auto; box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.wrap.spacepan, .wrap.spacepan *{cursor:grab !important}
+.wrap.spacepan:active{cursor:grabbing !important}
 .space{background:var(--space); border:1px solid color-mix(in srgb,var(--ink) 12%, var(--line)); border-radius:11px; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden; padding:5px}
 .space .ic{display:grid;place-items:center;color:var(--ink-2)} .space .ic svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .space .lb{font-size:12.5px; font-weight:700; color:var(--ink); text-align:center; line-height:1.2; white-space:normal; word-break:keep-all}

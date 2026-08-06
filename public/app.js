@@ -80,7 +80,7 @@ function mergeWalls(items, floors){
 let STATE={floors:[],depts:[],employees:[],items:[]};
 let DBYID={}, DBYNAME={};
 let fi=0, view={s:1,tx:0,ty:0}, filter=null, vacantMode=false, activeId=null;
-let editMode=false, dirty=false, selected=new Set(), drag=null, lastTap=null, adminPw='';
+let editMode=false, dirty=false, selected=new Set(), drag=null, lastTap=null, adminPw='', spaceDown=false;
 let measMode=false, mstart=null, mprev=null;
 const wrap=$('#wrap'), stage=$('#stage'), paper=$('#paper'), walls=$('#walls'), dlayer=$('#dlayer'), mlayer=$('#mlayer'), tip=$('#tip');
 const curFloor=()=>STATE.floors[fi], curId=()=>curFloor()&&curFloor().id;
@@ -217,8 +217,10 @@ $('#fit').onclick=fit;
 const ptrs=new Map(); let pinch=null;
 wrap.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null; });
 wrap.addEventListener('pointerdown',e=>{
+  if(e.button===2)return;               // 우클릭은 contextmenu(삭제)가 처리
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size>=2){ const v=[...ptrs.values()],a=v[0],b=v[1]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2,s:view.s,tx:view.tx,ty:view.ty}; drag=null; wrap.classList.remove('grab'); return; }
+  if(spaceDown){ drag={mode:'pan',sx:e.clientX,sy:e.clientY,tx:view.tx,ty:view.ty,moved:false}; wrap.setPointerCapture(e.pointerId); return; }  // 스페이스바+드래그=화면 이동
   if(measMode){ if(e.button!==0)return; const hit=e.target.closest('[data-mi]');
     if(hit){ const mi=STATE.items.find(x=>x.id===hit.dataset.mi); const r=wrap.getBoundingClientRect(); const cp={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s};
       const hz=mi?((mi.orient||'h')==='h'):true; const p0=mi?{x:mi.x,y:mi.y}:{x:0,y:0}, p1=mi?(hz?{x:mi.x+mi.w,y:mi.y}:{x:mi.x,y:mi.y+mi.h}):{x:0,y:0};
@@ -227,7 +229,7 @@ wrap.addEventListener('pointerdown',e=>{
     const r=wrap.getBoundingClientRect(); mstart={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; drag={mode:'meas',sx:e.clientX,sy:e.clientY}; wrap.setPointerCapture(e.pointerId); return; }
   if(editMode && e.target.classList && e.target.classList.contains('rz')){
     const id=e.target.dataset.for, it=STATE.items.find(x=>x.id===id);
-    if(it){ const d={mode:'resize',id,sx:e.clientX,sy:e.clientY,ow:it.w,oh:it.h,moved:false};
+    if(it){ const d={mode:'resize',id,dir:e.target.dataset.dir||'se',sx:e.clientX,sy:e.clientY,ox:it.x,oy:it.y,ow:it.w,oh:it.h,moved:false};
       if(it.type==='desk'){ deskDefaults(it); d.odn=it.dn||1; d.orient=it.orient; d.unit=(it.orient==='v'?it.h:it.w)/(it.dn||1); }
       drag=d; wrap.setPointerCapture(e.pointerId); }
     return;
@@ -260,18 +262,22 @@ wrap.addEventListener('pointermove',e=>{
   if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
   if(drag.mode==='pan'){ view.tx=drag.tx+(e.clientX-drag.sx); view.ty=drag.ty+(e.clientY-drag.sy); applyView(); }
   else if(drag.mode==='resize'){ const it=STATE.items.find(x=>x.id===drag.id); if(!it)return;
-    if(it.type==='desk'){ const ddw=(e.clientX-drag.sx)/view.s, ddh=(e.clientY-drag.sy)/view.s;
-      const along=(drag.orient==='v'?drag.oh+ddh:drag.ow+ddw), unit=drag.unit||(drag.orient==='v'?drag.oh:drag.ow)||24;
-      const dn=Math.max(1,Math.round(along/unit)); it.dn=dn;
-      if(drag.orient==='v')it.h=Math.round(unit*dn); else it.w=Math.round(unit*dn);
-      const del=paper.querySelector(`[data-id="${drag.id}"]`); if(del){ del.style.width=it.w+'px'; del.style.height=it.h+'px'; }
+    const dir=drag.dir||'se', dx=(e.clientX-drag.sx)/view.s, dy=(e.clientY-drag.sy)/view.s;
+    const west=dir.includes('w'), east=dir.includes('e'), north=dir.includes('n'), south=dir.includes('s');
+    if(it.type==='desk'){ const long=drag.orient==='v';
+      const along = long ? drag.oh+(north?-dy:dy) : drag.ow+(west?-dx:dx);
+      const unit=drag.unit||(long?drag.oh:drag.ow)||24; const dn=Math.max(1,Math.round(along/unit)); it.dn=dn; const np=Math.round(unit*dn);
+      if(long){ if(north)it.y=drag.oy+(drag.oh-np); it.h=np; } else { if(west)it.x=drag.ox+(drag.ow-np); it.w=np; }
+      const del=paper.querySelector(`[data-id="${drag.id}"]`); if(del){ del.style.left=it.x+'px'; del.style.top=it.y+'px'; del.style.width=it.w+'px'; del.style.height=it.h+'px'; }
       moveHandle(it); tip.textContent=deskTip(it); tip.classList.add('on'); moveTip(e); return; }
-    const dw=(e.clientX-drag.sx)/view.s, dh=(e.clientY-drag.sy)/view.s;
-    const minW=it.type==='line'?4:24, minH=it.type==='line'?4:16;
-    it.w=Math.max(minW,snap(drag.ow+dw)); it.h=Math.max(minH,snap(drag.oh+dh));
+    const minW=it.type==='line'?4:16, minH=it.type==='line'?4:12;
+    let nw=drag.ow, nh=drag.oh;
+    if(east)nw=drag.ow+dx; if(west)nw=drag.ow-dx; if(south)nh=drag.oh+dy; if(north)nh=drag.oh-dy;
+    nw=Math.max(minW,snap(nw)); nh=Math.max(minH,snap(nh));
+    it.w=nw; it.h=nh; it.x=west?drag.ox+(drag.ow-nw):drag.ox; it.y=north?drag.oy+(drag.oh-nh):drag.oy;
     if(it.type==='line'){ const th=it.thickness||6; if((it.orient||'h')==='h')it.h=th; else it.w=th; }
     if(it.type==='label'){ it.fontSize=clamp(Math.round(it.h*0.6),10,200); }
-    const el=paper.querySelector(`[data-id="${drag.id}"]`); if(el){ el.style.width=it.w+'px'; el.style.height=it.h+'px'; if(it.type==='label')el.style.fontSize=it.fontSize+'px'; }
+    const el=paper.querySelector(`[data-id="${drag.id}"]`); if(el){ el.style.left=it.x+'px'; el.style.top=it.y+'px'; el.style.width=it.w+'px'; el.style.height=it.h+'px'; if(it.type==='label')el.style.fontSize=it.fontSize+'px'; }
     moveHandle(it);
   }
   else{ const dx=(e.clientX-drag.sx)/view.s, dy=(e.clientY-drag.sy)/view.s;
@@ -296,14 +302,16 @@ wrap.addEventListener('pointerup',e=>{
   wrap.classList.remove('grab'); drag=null; });
 wrap.addEventListener('wheel',e=>{e.preventDefault(); const fac=e.deltaY<0?1.1:1/1.1, ns=clamp(view.s*fac,.22,2.8), r=wrap.getBoundingClientRect(); const cx=e.clientX-r.left,cy=e.clientY-r.top; view.tx=cx-(cx-view.tx)*(ns/view.s); view.ty=cy-(cy-view.ty)*(ns/view.s); view.s=ns; applyView(); if(measMode)drawMeas();},{passive:false});
 
+const RZDIRS={nw:[0,0],n:[.5,0],ne:[1,0],e:[1,.5],se:[1,1],s:[.5,1],sw:[0,1],w:[0,.5]};
+const RZCUR={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
 function paintSel(){
   $$('.rz',paper).forEach(h=>h.remove());
   $$('.item',paper).forEach(el=>el.classList.toggle('sel',selected.has(el.dataset.id)));
   if(editMode && selected.size===1){ const it=STATE.items.find(x=>x.id===[...selected][0]);
-    if(it){ const h=document.createElement('div'); h.className='rz'; h.dataset.for=it.id; h.style.left=(it.x+it.w-7)+'px'; h.style.top=(it.y+it.h-7)+'px'; paper.appendChild(h); } }
+    if(it){ Object.keys(RZDIRS).forEach(d=>{ const [fx,fy]=RZDIRS[d]; const h=document.createElement('div'); h.className='rz'; h.dataset.for=it.id; h.dataset.dir=d; h.style.left=(it.x+it.w*fx-6)+'px'; h.style.top=(it.y+it.h*fy-6)+'px'; h.style.cursor=RZCUR[d]; paper.appendChild(h); }); } }
   $('#delSel').disabled=!selected.size;
 }
-function moveHandle(it){ const hn=paper.querySelector('.rz'); if(hn){ hn.style.left=(it.x+it.w-7)+'px'; hn.style.top=(it.y+it.h-7)+'px'; } }
+function moveHandle(it){ $$('.rz',paper).forEach(h=>{ const [fx,fy]=RZDIRS[h.dataset.dir]||[1,1]; h.style.left=(it.x+it.w*fx-6)+'px'; h.style.top=(it.y+it.h*fy-6)+'px'; }); }
 
 /* ── 상세 패널 ── */
 function openPanel(id){ const it=STATE.items.find(x=>x.id===id); if(!it||!it.name)return; activeId=id; tip.classList.remove('on');
@@ -346,14 +354,21 @@ document.addEventListener('keydown',e=>{
     if(measMode){ measMode=false; wrap.classList.remove('measuring'); $('#measBtn').classList.remove('on'); clearMeasure(); } }
   const typing=/input|select|textarea/i.test(e.target.tagName);
   const mod=e.ctrlKey||e.metaKey;
+  if(e.code==='Space' && !typing && !mod){ if(!spaceDown){ spaceDown=true; wrap.classList.add('spacepan'); } e.preventDefault(); return; }  // 스페이스바=화면이동 모드
   if(mod && e.key.toLowerCase()==='s'){ e.preventDefault(); if(editMode)save(); return; }
   if(!editMode || !$('#modalback').hidden) return;   // 편집중 + 모달 안 열림일 때만
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key) && selected.size && !typing){ e.preventDefault();  // 방향키 미세조절
+    const s=e.shiftKey?10:1; let dx=0,dy=0; if(e.key==='ArrowLeft')dx=-s; else if(e.key==='ArrowRight')dx=s; else if(e.key==='ArrowUp')dy=-s; else if(e.key==='ArrowDown')dy=s;
+    selected.forEach(id=>{ const it=STATE.items.find(x=>x.id===id); if(it){ it.x+=dx; it.y+=dy; } }); markDirty(); render(); paintSel(); return; }
   if(mod && e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if(mod && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
   if(mod && e.key.toLowerCase()==='c' && !typing){ e.preventDefault(); copySel(); return; }
   if(mod && e.key.toLowerCase()==='v' && !typing){ e.preventDefault(); pasteClip(); return; }
   if((e.key==='Delete'||e.key==='Backspace') && !typing){ e.preventDefault(); delSelected(); }
 });
+document.addEventListener('keyup',e=>{ if(e.code==='Space'){ spaceDown=false; wrap.classList.remove('spacepan'); } });
+/* 우클릭 = 요소 삭제 (편집모드) */
+wrap.addEventListener('contextmenu',e=>{ if(!editMode)return; const el=e.target.closest('.item'); if(!el)return; e.preventDefault(); const id=el.dataset.id; STATE.items=STATE.items.filter(x=>x.id!==id); selected.delete(id); markDirty(); pushHist(); render(); paintSel(); });
 
 /* ── 모달 ── */
 function openModal(html){ $('#modal').innerHTML=html; $('#modalback').hidden=false; $('#scrim').classList.add('on'); }
