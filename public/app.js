@@ -108,13 +108,13 @@ async function loadState(){
 function refreshMaps(){ DBYID=Object.fromEntries(STATE.depts.map(d=>[d.id,d])); DBYNAME=Object.fromEntries(STATE.depts.map(d=>[d.name,d])); }
 
 /* ── 책상 실치수 · 면적 (재무 면적/비용 배분용) ── */
-function deskDefaults(it){ if(it.orient!=='h'&&it.orient!=='v')it.orient=(it.w>=it.h?'h':'v'); if(!(it.dn>=1))it.dn=1; if(!(it.mmU>0))it.mmU=1200; if(!(it.mmD>0))it.mmD=700; }
-function deskArea(it){ return (it.mmU||1200)*(it.dn||1)*(it.mmD||700)/1e6; } // ㎡
-function deskDims(it){ const L=(it.mmU||1200)*(it.dn||1), D=(it.mmD||700); return it.orient==='v'?{w:D,h:L}:{w:L,h:D}; } // 실제 가로·세로(mm)
+function deskDefaults(it){ if(it.orient!=='h'&&it.orient!=='v')it.orient=(it.w>=it.h?'h':'v'); if(!(it.dn>=1))it.dn=1; if(!(it.mmU>0))it.mmU=1400; if(!(it.mmD>0))it.mmD=700; }
+function deskArea(it){ return (it.mmU||1400)*(it.dn||1)*(it.mmD||700)/1e6; } // ㎡
+function deskDims(it){ const L=(it.mmU||1400)*(it.dn||1), D=(it.mmD||700); return it.orient==='v'?{w:D,h:L}:{w:L,h:D}; } // 실제 가로·세로(mm)
 function deskTip(it){ const d=deskDims(it); return `${d.w} × ${d.h}mm · ${(d.w*d.h/1e6).toFixed(2)}㎡`; }
 function setDeskSize(it,orient,dn,mmU,mmD){ deskDefaults(it);
   const oldLong=(it.orient==='v'?it.h:it.w), oldShort=(it.orient==='v'?it.w:it.h), unit=oldLong/(it.dn||1);
-  it.orient=(orient==='v'?'v':'h'); it.dn=Math.max(1,dn|0||1); it.mmU=mmU||1200; it.mmD=mmD||700;
+  it.orient=(orient==='v'?'v':'h'); it.dn=Math.max(1,dn|0||1); it.mmU=mmU||1400; it.mmD=mmD||700;
   const newLong=Math.max(8,Math.round(unit*it.dn)), newShort=Math.max(8,Math.round(oldShort));
   if(it.orient==='v'){ it.h=newLong; it.w=newShort; } else { it.w=newLong; it.h=newShort; } }
 /* 모든 요소를 캔버스(층) 안으로 제한 */
@@ -413,7 +413,7 @@ function delSelected(){ if(!selected.size)return; if(!confirm(selected.size+'개
 function addItem(type){ const f=curFloor(); if(!f)return;
   const cx=snap((wrap.clientWidth/2-view.tx)/view.s), cy=snap((wrap.clientHeight/2-view.ty)/view.s);
   const it={id:uid(),floorId:f.id,type,x:cx,y:cy,z:type==='label'?3:type==='desk'?2:1};
-  if(type==='desk'){ const sc=f.mX||0.0125; Object.assign(it,{w:Math.round(1.2/sc),h:Math.round(0.7/sc),name:'',deptId:(STATE.depts[0]||{}).id||null,title:'',seatNo:'',occupied:false,orient:'h',dn:1,mmU:1200,mmD:700}); }
+  if(type==='desk'){ const sc=f.mX||0.0125; Object.assign(it,{w:Math.round(1.4/sc),h:Math.round(0.7/sc),name:'',deptId:(STATE.depts[0]||{}).id||null,title:'',seatNo:'',occupied:false,orient:'h',dn:1,mmU:1400,mmD:700}); }
   if(type==='facility')Object.assign(it,{w:70,h:60,label:'시설'});
   if(type==='label')Object.assign(it,{w:140,h:36,text:'텍스트',fontSize:16,bold:true});
   if(type==='line')Object.assign(it,{orient:'h',w:180,h:6,thickness:6,color:'#aab0bd',lineStyle:'solid'});
@@ -575,18 +575,18 @@ function editDesk(it){
     <label>좌석번호</label><input id="m_seat" value="${esc(it.seatNo||'')}"/>
     <div class="row2"><div><label>방향</label><select id="m_orient"><option value="h" ${it.orient!=='v'?'selected':''}>가로형 (긴변 →)</option><option value="v" ${it.orient==='v'?'selected':''}>세로형 (긴변 ↓)</option></select></div>
     <div><label>책상 수</label><input id="m_dn" type="number" min="1" step="1" value="${it.dn||1}"/></div></div>
-    <div class="row2"><div><label>책상 가로(mm)</label><input id="m_mmU" type="number" min="1" value="${it.mmU||1200}"/></div>
+    <div class="row2"><div><label>책상 가로(mm)</label><input id="m_mmU" type="number" min="1" value="${it.mmU||1400}"/></div>
     <div><label>깊이 세로(mm)</label><input id="m_mmD" type="number" min="1" value="${it.mmD||700}"/></div></div>
     <div class="arealine" id="m_area"></div>
     <div class="actions"><button class="btn danger" id="m_empty">비우기(공석)</button><span style="flex:1"></span><button class="btn" id="m_cancel">취소</button><button class="btn primary" id="m_ok">확인</button></div>`);
   const nm=$('#m_name'), dp=$('#m_dept'), tt=$('#m_title');
-  const updArea=()=>{ const o=$('#m_orient').value, dn=Math.max(1,+$('#m_dn').value||1), u=+$('#m_mmU').value||1200, dd=+$('#m_mmD').value||700; const L=u*dn, W=o==='v'?dd:L, H=o==='v'?L:dd, a=W*H/1e6; $('#m_area').innerHTML=`총 <b>${W} × ${H}mm</b> · <b>${a.toFixed(2)}㎡</b> · ${(a/3.3058).toFixed(2)}평`; };
+  const updArea=()=>{ const o=$('#m_orient').value, dn=Math.max(1,+$('#m_dn').value||1), u=+$('#m_mmU').value||1400, dd=+$('#m_mmD').value||700; const L=u*dn, W=o==='v'?dd:L, H=o==='v'?L:dd, a=W*H/1e6; $('#m_area').innerHTML=`총 <b>${W} × ${H}mm</b> · <b>${a.toFixed(2)}㎡</b> · ${(a/3.3058).toFixed(2)}평`; };
   ['m_orient','m_dn','m_mmU','m_mmD'].forEach(id=>{ const el=$('#'+id); if(el){ el.oninput=updArea; el.onchange=updArea; } }); updArea();
   nm.oninput=()=>{ const e=STATE.employees.find(x=>x.name===nm.value.trim()); if(e){ const d=DBYNAME[e.dept]; if(d)dp.value=d.id; if(e.rank)tt.value=e.rank; } };
   $('#m_cancel').onclick=closeModal;
   $('#m_empty').onclick=()=>{ it.name=''; it.title=''; it.occupied=false; closeModal(); markDirty(); pushHist(); render(); };
   $('#m_ok').onclick=()=>{ it.name=nm.value.trim(); it.deptId=dp.value||null; it.title=tt.value.trim(); it.seatNo=$('#m_seat').value.trim(); it.occupied=!!it.name;
-    setDeskSize(it,$('#m_orient').value,Math.max(1,+$('#m_dn').value||1),+$('#m_mmU').value||1200,+$('#m_mmD').value||700);
+    setDeskSize(it,$('#m_orient').value,Math.max(1,+$('#m_dn').value||1),+$('#m_mmU').value||1400,+$('#m_mmD').value||700);
     closeModal(); markDirty(); pushHist(); render(); };
 }
 
