@@ -420,7 +420,7 @@ function addItem(type){ const f=curFloor(); if(!f)return;
   if(type==='desk'){ const sc=f.mX||0.0125; Object.assign(it,{w:Math.round(1.4/sc),h:Math.round(0.7/sc),name:'',deptId:(STATE.depts[0]||{}).id||null,title:'',seatNo:'',occupied:false,orient:'h',dn:1,mmU:1400,mmD:700}); }
   if(type==='facility')Object.assign(it,{w:70,h:60,label:'시설'});
   if(type==='label')Object.assign(it,{w:140,h:36,text:'텍스트',fontSize:16,bold:true});
-  if(type==='line')Object.assign(it,{orient:'h',w:180,h:6,thickness:6,color:'#aab0bd',lineStyle:'solid'});
+  if(type==='line')Object.assign(it,{orient:'h',w:180,h:4,thickness:4,color:'#aab0bd',lineStyle:'solid'});
   if(type==='wall'){ it.type='line'; Object.assign(it,{orient:'h',w:240,h:9,thickness:9,color:'#3a404c',lineStyle:'solid'}); }
   if(type==='rect')Object.assign(it,{w:120,h:80,stroke:'#333333',fill:'',sw:2});
   if(type==='ellipse')Object.assign(it,{w:90,h:90,stroke:'#333333',fill:'',sw:2});
