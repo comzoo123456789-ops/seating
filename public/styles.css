@@ -109,10 +109,10 @@ button{font-family:inherit}
 .anno{z-index:2; color:var(--ink-2); font-weight:800; letter-spacing:-.01em; text-align:center; display:flex; align-items:center; justify-content:center; line-height:1.2; white-space:normal; word-break:keep-all}
 .pillar{background:var(--pillar); border-radius:2px; opacity:.5; z-index:2}
 
-.desk{z-index:6; pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2px 4px 2px 9px; overflow:hidden;
-  background:var(--paper); border:1px solid var(--line); border-radius:9px; cursor:pointer; box-shadow:var(--shadow-card);
+.desk{z-index:6; pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:3px 5px; overflow:hidden;
+  background:color-mix(in srgb,var(--dc) 16%,#fff); border:1px solid color-mix(in srgb,var(--dc) 42%,var(--line)); border-radius:9px; cursor:pointer; box-shadow:var(--shadow-card);
   transition:transform .12s, box-shadow .12s, border-color .12s, opacity .16s}
-.desk::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--dc); border-radius:9px 0 0 9px}
+.desk::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--dc); border-radius:9px 0 0 9px; display:none}
 .desk .nm{font-size:16px; font-weight:800; letter-spacing:-.03em; line-height:1.02; color:var(--ink); white-space:nowrap; text-align:center; max-width:100%; overflow:hidden}
 .desk[data-o="v"] .nm{writing-mode:vertical-rl; text-orientation:upright; white-space:nowrap; font-size:15px; letter-spacing:0; max-width:none; max-height:100%; overflow:hidden}
 .desk:hover{transform:translateY(-2px); box-shadow:var(--shadow-lift); border-color:color-mix(in srgb,var(--dc) 55%, var(--line)); z-index:8}
@@ -122,7 +122,7 @@ button{font-family:inherit}
 .desk.resv{background:color-mix(in srgb,#e8912a 13%, var(--paper)); border:1px solid color-mix(in srgb,#e8912a 55%, var(--line)); box-shadow:var(--shadow-card); cursor:pointer}
 .desk.resv{padding:2px 3px 2px 6px} .desk.resv::before{background:#e8912a; opacity:1; display:block}
 .desk.resv .nm{font-size:13px; font-weight:800; color:#a86212; white-space:nowrap} .desk.resv .rk{font-size:10px; font-weight:700; color:#c07f1a; white-space:nowrap; line-height:1.1}
-.desk.dim{opacity:.1} .desk.hit{background:color-mix(in srgb,var(--dc) 14%, var(--paper)); border-color:color-mix(in srgb,var(--dc) 60%, var(--line)); box-shadow:0 0 0 1px color-mix(in srgb,var(--dc) 42%, transparent), var(--shadow-lift); transform:translateY(-2px); z-index:9}
+.desk.dim{opacity:.1} .desk.hit{background:color-mix(in srgb,var(--dc) 34%, #fff); border-color:color-mix(in srgb,var(--dc) 70%, var(--line)); box-shadow:0 0 0 1px color-mix(in srgb,var(--dc) 48%, transparent), var(--shadow-lift); transform:translateY(-2px); z-index:9}
 .desk.active{background:color-mix(in srgb,var(--accent) 10%, var(--paper)); border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-weak), var(--shadow-lift); z-index:10}
 /* 책상+의자 표시 (의자 = 앞쪽 반원) */
 .desk::after{display:none}
