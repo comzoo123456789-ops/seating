@@ -232,7 +232,7 @@ wrap.addEventListener('pointerdown',e=>{
       const hz=mi?((mi.orient||'h')==='h'):true; const p0=mi?{x:mi.x,y:mi.y}:{x:0,y:0}, p1=mi?(hz?{x:mi.x+mi.w,y:mi.y}:{x:mi.x,y:mi.y+mi.h}):{x:0,y:0};
       const TOL=16/view.s, d0=Math.hypot(cp.x-p0.x,cp.y-p0.y), d1=Math.hypot(cp.x-p1.x,cp.y-p1.y); let sub='move'; if(d0<=TOL&&d0<=d1)sub='e0'; else if(d1<=TOL)sub='e1';
       drag={mode:'measEdit',id:hit.dataset.mi,sub,sx:e.clientX,sy:e.clientY,moved:false,ox:mi?mi.x:0,oy:mi?mi.y:0,ow:mi?mi.w:0,oh:mi?mi.h:0}; wrap.setPointerCapture(e.pointerId); return; }
-    const r=wrap.getBoundingClientRect(); mstart={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; drag={mode:'meas',sx:e.clientX,sy:e.clientY}; wrap.setPointerCapture(e.pointerId); return; }
+    const r=wrap.getBoundingClientRect(); const cf=curFloor(); mstart={x:clamp((e.clientX-r.left-view.tx)/view.s,0,cf.w),y:clamp((e.clientY-r.top-view.ty)/view.s,0,cf.h)}; drag={mode:'meas',sx:e.clientX,sy:e.clientY}; wrap.setPointerCapture(e.pointerId); return; }
   if(editMode && e.target.classList && e.target.classList.contains('rz')){
     const id=e.target.dataset.for, it=STATE.items.find(x=>x.id===id);
     if(it){ const d={mode:'resize',id,dir:e.target.dataset.dir||'se',sx:e.clientX,sy:e.clientY,ox:it.x,oy:it.y,ow:it.w,oh:it.h,moved:false};
@@ -263,7 +263,7 @@ wrap.addEventListener('pointermove',e=>{
     const ns=clamp(pinch.s*(d/pinch.d),.15,3), cX=(pinch.mx-r.left-pinch.tx)/pinch.s, cY=(pinch.my-r.top-pinch.ty)/pinch.s;
     view.s=ns; view.tx=(mx-r.left)-cX*ns; view.ty=(my-r.top)-cY*ns; applyView(); if(measMode)drawMeas(); return; }
   if(!drag)return;
-  if(drag.mode==='meas'){ const r=wrap.getBoundingClientRect(); const raw={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s}; const b=segStraight(mstart,raw); mprev={a:mstart,b}; drawMeas({a:mstart,b}); return; }
+  if(drag.mode==='meas'){ const r=wrap.getBoundingClientRect(); const cf=curFloor(); const raw={x:clamp((e.clientX-r.left-view.tx)/view.s,0,cf.w),y:clamp((e.clientY-r.top-view.ty)/view.s,0,cf.h)}; const b=segStraight(mstart,raw); mprev={a:mstart,b}; drawMeas({a:mstart,b}); return; }
   if(drag.mode==='measEdit'){ if(Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)>3)drag.moved=true;
     if(drag.moved){ const it=STATE.items.find(x=>x.id===drag.id); if(it){ const dx=(e.clientX-drag.sx)/view.s, dy=(e.clientY-drag.sy)/view.s, hz=(it.orient||'h')==='h';
       if(drag.sub==='move'){ it.x=snap(drag.ox+dx); it.y=snap(drag.oy+dy); }
