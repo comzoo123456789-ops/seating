@@ -125,6 +125,7 @@ function render(){
   const f=curFloor(); if(!f)return;
   $$('#floors button').forEach(b=>b.classList.toggle('on',+b.dataset.i===fi));
   paper.style.width=f.w+'px'; paper.style.height=f.h+'px';
+  { let bgi=paper.querySelector('.bgimg'); if(f.bg){ if(!bgi){bgi=document.createElement('img');bgi.className='bgimg';paper.insertBefore(bgi,paper.firstChild);} if(bgi.getAttribute('src')!==f.bg)bgi.setAttribute('src',f.bg); bgi.style.opacity=(f.bgOp==null?1:f.bgOp); } else if(bgi){ bgi.remove(); } }
   walls.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); walls.style.width=f.w+'px'; walls.style.height=f.h+'px';
   mlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); mlayer.style.width=f.w+'px'; mlayer.style.height=f.h+'px';
   dlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); dlayer.style.width=f.w+'px'; dlayer.style.height=f.h+'px';
@@ -136,6 +137,9 @@ function render(){
     if(it.type==='line'){ const col=(it.color&&it.color[0]==='#')?it.color:'var(--wall)'; html+=`<div class="item line" data-id="${it.id}" style="${st};background:${col}"></div>`; return; }
     if(it.type==='meas'||it.type==='dim')return;
     if(it.type==='shape'){ html+=`<div class="item pillar" data-id="${it.id}" style="${st}"></div>`; return; }
+    if(it.type==='rect'){ html+=`<div class="item rect" data-id="${it.id}" style="${st};border:${it.sw==null?2:it.sw}px solid ${it.stroke||'#333'};background:${it.fill||'transparent'}"></div>`; return; }
+    if(it.type==='ellipse'){ html+=`<div class="item ellipse" data-id="${it.id}" style="${st};border:${it.sw==null?2:it.sw}px solid ${it.stroke||'#333'};background:${it.fill||'transparent'};border-radius:50%"></div>`; return; }
+    if(it.type==='door'){ html+=`<div class="item door" data-id="${it.id}" style="${st}">${doorSVG(it)}</div>`; return; }
     if(it.type==='facility'){ const lbl=(it.label||'').replace(/\n/g,' '); const k=kindOf(lbl); const big=it.w*it.h>=9000;
       const md=Math.min(it.w,it.h);
       const isz=big?clamp(Math.round(md*0.42),18,48):19, fsz=big?clamp(Math.round(md*0.16),10,22):10;
@@ -377,11 +381,26 @@ function addItem(type){ const f=curFloor(); if(!f)return;
   if(type==='facility')Object.assign(it,{w:70,h:60,label:'시설'});
   if(type==='label')Object.assign(it,{w:140,h:36,text:'텍스트',fontSize:16,bold:true});
   if(type==='line')Object.assign(it,{orient:'h',w:180,h:6,thickness:6,color:'#aab0bd',lineStyle:'solid'});
+  if(type==='rect')Object.assign(it,{w:120,h:80,stroke:'#333333',fill:'',sw:2});
+  if(type==='ellipse')Object.assign(it,{w:90,h:90,stroke:'#333333',fill:'',sw:2});
+  if(type==='door')Object.assign(it,{w:70,h:70,hinge:0,flip:false,color:'#555555'});
   STATE.items.push(it); markDirty(); pushHist(); render();
   selected.clear(); selected.add(it.id); paintSel();
-  if(type==='desk')editDesk(it); else if(type==='facility')editFacility(it); else if(type==='label')editLabel(it);
+  if(type==='desk')editDesk(it); else if(type==='facility')editFacility(it); else if(type==='label')editLabel(it); else if(type==='door')editDoor(it);
 }
 $$('[data-add]').forEach(b=>b.onclick=()=>addItem(b.dataset.add));
+
+/* 배경 이미지(도면) — 실척 배경으로 깔기 */
+if($('#bgBtn'))$('#bgBtn').onclick=()=>{ const f=curFloor(); if(!f)return;
+  if(f.bg){ const a=prompt('배경 도면: 1=교체 · 2=투명도 · 3=삭제','1'); if(a==null)return;
+    if(a==='3'){ delete f.bg; delete f.bgOp; markDirty(); pushHist(); render(); return; }
+    if(a==='2'){ const o=prompt('투명도 0~100', Math.round((f.bgOp==null?1:f.bgOp)*100)); if(o!=null){ f.bgOp=clamp((+o||0)/100,0,1); markDirty(); render(); } return; } }
+  $('#bgFile').click(); };
+if($('#bgFile'))$('#bgFile').onchange=e=>{ const file=e.target.files[0]; e.target.value=''; if(!file)return;
+  const rd=new FileReader(); rd.onload=()=>{ const img=new Image(); img.onload=()=>{ const maxW=1800; let w=img.width,h=img.height; if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h);
+    const f=curFloor(); f.bg=cv.toDataURL('image/jpeg',0.85); f.bgOp=(f.bgOp==null?1:f.bgOp); markDirty(); pushHist(); render(); toast('배경 도면 적용 (편집모드에서 🖼로 투명도·삭제)'); };
+    img.src=rd.result; }; rd.readAsDataURL(file); };
 
 /* 좌석 N×M 일괄 생성 */
 $('#addPod').onclick=()=>{ const f=curFloor(); if(!f)return; const inp=prompt('가로 개수 × 세로 개수  예: 4x3','4x3'); if(!inp)return;
@@ -436,7 +455,32 @@ function snapLine(it){ if(it.type!=='line')return; const TOL=14, horiz=(it.orien
     const m1=near(it.y,Y); if(m1!=null){ it.h=Math.round(it.h+(it.y-m1)); it.y=Math.round(m1); }
     const m2=near(it.y+it.h,Y); if(m2!=null)it.h=Math.round(m2-it.y); }
   if(it.w<2)it.w=2; if(it.h<2)it.h=2; }
-function editItem(it){ if(it.type==='desk'){ if(it.reserved&&!it.name)openReserve(it); else editDesk(it); } else if(it.type==='facility')editFacility(it); else if(it.type==='label')editLabel(it); else if(it.type==='line')editLine(it); }
+function editItem(it){ if(it.type==='desk'){ if(it.reserved&&!it.name)openReserve(it); else editDesk(it); } else if(it.type==='facility')editFacility(it); else if(it.type==='label')editLabel(it); else if(it.type==='line')editLine(it); else if(it.type==='door')editDoor(it); else if(it.type==='rect'||it.type==='ellipse')editShape(it); }
+
+/* 파워포인트식 도형: 문(여닫이 호) · 사각형 · 원 */
+function doorSVG(it){ const w=it.w,h=it.h,r=Math.max(6,Math.min(w,h)),hinge=(it.hinge||0)&3,flip=!!it.flip,c=it.color||'#555';
+  const C=[{H:[0,0],A:[r,0],B:[0,r]},{H:[w,0],A:[w-r,0],B:[w,r]},{H:[w,h],A:[w-r,h],B:[w,h-r]},{H:[0,h],A:[r,h],B:[0,h-r]}][hinge];
+  const leaf=flip?C.A:C.B, arcTo=flip?C.B:C.A, sw=[1,0,1,0][hinge]^(flip?1:0);
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><path d="M ${leaf[0]} ${leaf[1]} A ${r} ${r} 0 0 ${sw} ${arcTo[0]} ${arcTo[1]}" fill="none" stroke="${c}" stroke-width="1.4" opacity="0.75"/><line x1="${C.H[0]}" y1="${C.H[1]}" x2="${leaf[0]}" y2="${leaf[1]}" stroke="${c}" stroke-width="2.4"/></svg>`; }
+function editDoor(it){ openModal(`<h3>문 (여닫이)</h3><p style="font-size:13px;color:var(--muted);margin:0 0 4px">경첩 위치·여닫이 방향 선택</p>
+  <div class="alnrow"><button class="btn sm" data-hg="0">↖ 좌상</button><button class="btn sm" data-hg="1">↗ 우상</button><button class="btn sm" data-hg="3">↙ 좌하</button><button class="btn sm" data-hg="2">↘ 우하</button></div>
+  <div class="alnrow"><button class="btn sm" id="d_flip">↔ 여닫이 반대로</button></div>
+  <div class="actions"><button class="btn danger" id="m_del">삭제</button><span style="flex:1"></span><button class="btn primary" id="m_close">닫기</button></div>`);
+  $$('[data-hg]',$('#modal')).forEach(b=>b.onclick=()=>{it.hinge=+b.dataset.hg;markDirty();render();});
+  $('#d_flip').onclick=()=>{it.flip=!it.flip;markDirty();render();};
+  $('#m_del').onclick=()=>{STATE.items=STATE.items.filter(x=>x.id!==it.id);selected.clear();closeModal();markDirty();pushHist();render();};
+  $('#m_close').onclick=()=>{pushHist();closeModal();}; }
+function editShape(it){ openModal(`<h3>${it.type==='ellipse'?'원':'사각형'}</h3>
+  <div class="row2"><div><label>테두리 색</label><input id="s_stroke" type="color" value="${it.stroke||'#333333'}"/></div><div><label>테두리 굵기</label><input id="s_sw" type="number" min="0" value="${it.sw==null?2:it.sw}"/></div></div>
+  <label>채우기 색</label><input id="s_fill" type="color" value="${it.fill||'#ffffff'}"/>
+  <div class="alnrow"><button class="btn sm" id="s_nofill">채우기 없음(투명)</button></div>
+  <div class="actions"><button class="btn danger" id="m_del">삭제</button><span style="flex:1"></span><button class="btn primary" id="m_close">닫기</button></div>`);
+  $('#s_stroke').oninput=()=>{it.stroke=$('#s_stroke').value;markDirty();render();};
+  $('#s_sw').oninput=()=>{it.sw=+$('#s_sw').value||0;markDirty();render();};
+  $('#s_fill').oninput=()=>{it.fill=$('#s_fill').value;markDirty();render();};
+  $('#s_nofill').onclick=()=>{it.fill='';markDirty();render();};
+  $('#m_del').onclick=()=>{STATE.items=STATE.items.filter(x=>x.id!==it.id);selected.clear();closeModal();markDirty();pushHist();render();};
+  $('#m_close').onclick=()=>{pushHist();closeModal();}; }
 
 function editFacility(it){
   openModal(`<h3>시설</h3><label>이름 (아이콘 자동 적용)</label><input id="f_lbl" value="${esc(it.label||'')}" placeholder="예: 복합기 · 화장실 · 계단 · 탕비실"/>

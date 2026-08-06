@@ -125,6 +125,10 @@ button{font-family:inherit}
 .desk.avail::before{display:none}
 .desk.avail .nm{color:#0d7a3c!important; font-weight:800!important; font-size:11.5px!important; opacity:1!important}
 .editing .desk, .editing .item.sel{cursor:move}
+.bgimg{position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; pointer-events:none; z-index:0; user-select:none}
+.item.rect, .item.ellipse{z-index:5; box-sizing:border-box; background:transparent}
+.item.door{z-index:5}
+.item.door svg{position:absolute; left:0; top:0; overflow:visible; pointer-events:none}
 .item.sel{outline:2px dashed var(--accent); outline-offset:2px; z-index:11}
 
 .legend{display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 20px; flex:0 0 auto; overflow-x:auto; background:var(--panel); border-top:1px solid var(--line)}
