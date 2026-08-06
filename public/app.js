@@ -154,6 +154,7 @@ function render(){
     if(it.type==='desk'){ const dep=DBYID[it.deptId]; const c=dep?dep.color:'#9aa1b0'; const vac=!it.name; const resv=vac&&it.reserved;
       if(resv){ const p=(it.reserved.from||'').split('-'); const md=p.length===3?(+p[1])+'/'+(+p[2]):'';
         html+=`<div class="item desk resv" data-id="${it.id}" style="${st};--dc:#e8912a"><span class="nm">${esc(it.reserved.name)}</span><span class="rk">예약 ${md}~</span></div>`; }
+      else if(it.furn){ html+=`<div class="item desk furn" data-id="${it.id}" data-o="${it.orient||'h'}" style="${st};--dc:${c}"></div>`; }
       else html+=`<div class="item desk ${vac?'vacant':''}" data-id="${it.id}" data-o="${it.orient||'h'}" style="${st};--dc:${c}"><span class="nm">${vac?'빈자리':esc(it.name)}</span></div>`; }
   });
   paper.insertAdjacentHTML('beforeend',html);
