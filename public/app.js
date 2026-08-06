@@ -228,7 +228,7 @@ wrap.addEventListener('pointerdown',e=>{
   if(ptrs.size>=2){ const v=[...ptrs.values()],a=v[0],b=v[1]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2,s:view.s,tx:view.tx,ty:view.ty}; drag=null; wrap.classList.remove('grab'); return; }
   if(spaceDown){ drag={mode:'pan',sx:e.clientX,sy:e.clientY,tx:view.tx,ty:view.ty,moved:false}; wrap.setPointerCapture(e.pointerId); return; }  // 스페이스바+드래그=화면 이동
   if(measMode){ if(e.button!==0)return; const hit=e.target.closest('[data-mi]');
-    if(hit){ const mi=STATE.items.find(x=>x.id===hit.dataset.mi); const r=wrap.getBoundingClientRect(); const cp={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s};
+    if(hit && editMode){ const mi=STATE.items.find(x=>x.id===hit.dataset.mi); const r=wrap.getBoundingClientRect(); const cp={x:(e.clientX-r.left-view.tx)/view.s,y:(e.clientY-r.top-view.ty)/view.s};
       const hz=mi?((mi.orient||'h')==='h'):true; const p0=mi?{x:mi.x,y:mi.y}:{x:0,y:0}, p1=mi?(hz?{x:mi.x+mi.w,y:mi.y}:{x:mi.x,y:mi.y+mi.h}):{x:0,y:0};
       const TOL=16/view.s, d0=Math.hypot(cp.x-p0.x,cp.y-p0.y), d1=Math.hypot(cp.x-p1.x,cp.y-p1.y); let sub='move'; if(d0<=TOL&&d0<=d1)sub='e0'; else if(d1<=TOL)sub='e1';
       drag={mode:'measEdit',id:hit.dataset.mi,sub,sx:e.clientX,sy:e.clientY,moved:false,ox:mi?mi.x:0,oy:mi?mi.y:0,ow:mi?mi.w:0,oh:mi?mi.h:0}; wrap.setPointerCapture(e.pointerId); return; }
@@ -809,7 +809,7 @@ function editVal(id){ const it=STATE.items.find(x=>x.id===id); if(!it)return; co
 function clearMeasure(){ if(mlayer)mlayer.innerHTML=''; }
 $('#measBtn').onclick=()=>{ measMode=!measMode; $('#measBtn').classList.toggle('on',measMode); wrap.classList.toggle('measuring',measMode); drawMeas();
   if(measMode)toast('드래그=길이 자동표시(0.1m) · 선 클릭=길이 직접입력(배율 기준) · 끝점=늘리기 · 우클릭=삭제'); };
-if(mlayer){ mlayer.addEventListener('contextmenu',e=>{ const g=e.target.closest('[data-mi]'); if(g){ e.preventDefault(); STATE.items=STATE.items.filter(x=>x.id!==g.dataset.mi); markDirty(); pushHist(); drawMeas(); } }); }
+if(mlayer){ mlayer.addEventListener('contextmenu',e=>{ if(!editMode)return; const g=e.target.closest('[data-mi]'); if(g){ e.preventDefault(); STATE.items=STATE.items.filter(x=>x.id!==g.dataset.mi); markDirty(); pushHist(); drawMeas(); } }); }
 
 async function save(){ try{ STATE.updatedAt=Date.now();
     const r=await fetch('/api/state',{method:'PUT',headers:{'Content-Type':'application/json','x-edit-pass':adminPw},body:JSON.stringify(STATE)});
