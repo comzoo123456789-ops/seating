@@ -74,6 +74,8 @@ button{font-family:inherit}
 .wrap.grab{cursor:grabbing} .wrap.editing{cursor:default}
 .stage{position:absolute; left:0; top:0; transform-origin:0 0}
 .paper{position:relative; background:radial-gradient(130% 100% at 50% 0%, var(--paper), var(--carpet) 92%); border-radius:10px; box-shadow:var(--shadow-map); border:1px solid var(--line)}
+/* 도트 격자 배경 (CAD 감성) — 배경도면 없는 층에서만, 치수/실선 가독성 유지 위해 아주 연하게 */
+.paper.dots{background-image:radial-gradient(rgba(20,28,50,.055) 1px, transparent 1.4px), radial-gradient(130% 100% at 50% 0%, var(--paper), var(--carpet) 92%); background-size:22px 22px, auto; background-position:11px 11px, 0 0}
 .walls{position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:3}
 .dlayer{position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:16}
 .mlayer{position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:20}
@@ -128,7 +130,13 @@ button{font-family:inherit}
 .desk.resv{background:color-mix(in srgb,#e8912a 13%, var(--paper)); border:1px solid color-mix(in srgb,#e8912a 55%, var(--line)); box-shadow:var(--shadow-card); cursor:pointer}
 .desk.resv{padding:2px 3px 2px 6px} .desk.resv::before{background:#e8912a; opacity:1; display:block}
 .desk.resv .nm{font-size:13px; font-weight:800; color:#a86212; white-space:nowrap} .desk.resv .rk{font-size:10px; font-weight:700; color:#c07f1a; white-space:nowrap; line-height:1.1}
-.desk.dim{opacity:.1} .desk.hit{background:color-mix(in srgb,var(--dc) 34%, #fff); border-color:color-mix(in srgb,var(--dc) 70%, var(--line)); box-shadow:0 0 0 1px color-mix(in srgb,var(--dc) 48%, transparent), var(--shadow-lift); transform:translateY(-2px); z-index:9}
+.desk.dim{opacity:.4; transition:opacity .18s ease}
+.item.sdim{opacity:.4; transition:opacity .18s ease}
+@keyframes spotPulse{
+  0%,100%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--dc) 58%, transparent), 0 0 0 4px color-mix(in srgb,var(--dc) 20%, transparent), var(--shadow-lift)}
+  50%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--dc) 68%, transparent), 0 0 0 9px color-mix(in srgb,var(--dc) 6%, transparent), var(--shadow-lift)} }
+.desk.hit{background:color-mix(in srgb,var(--dc) 30%, #fff); border-color:color-mix(in srgb,var(--dc) 72%, var(--line)); transform:translateY(-2px); z-index:9; animation:spotPulse 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){ .desk.hit{animation:none; box-shadow:0 0 0 2px color-mix(in srgb,var(--dc) 58%, transparent), var(--shadow-lift)} }
 .desk.active{background:color-mix(in srgb,var(--accent) 10%, var(--paper)); border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-weak), var(--shadow-lift); z-index:10}
 /* 책상+의자 표시 (의자 = 앞쪽 반원) */
 .desk::after{display:none}
@@ -145,7 +153,7 @@ button{font-family:inherit}
 .item.sel{outline:2px dashed var(--accent); outline-offset:2px; z-index:11}
 .marquee{position:absolute; border:1.5px dashed var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); z-index:25; pointer-events:none}
 
-.legend{display:flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; flex:0 0 auto; overflow-x:auto; background:color-mix(in srgb,var(--panel) 80%, transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--line); box-shadow:0 -10px 26px -20px rgba(20,30,60,.35)}
+.legend{display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 22px 13px; flex:0 0 auto; overflow-x:auto; background:color-mix(in srgb,var(--panel) 74%, transparent); backdrop-filter:blur(16px) saturate(1.3); -webkit-backdrop-filter:blur(16px) saturate(1.3); border-top:1px solid color-mix(in srgb,var(--ink) 8%, var(--line)); border-radius:16px 16px 0 0; box-shadow:0 -14px 34px -22px rgba(20,30,60,.45)}
 .legend .llab{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-right:2px; flex:0 0 auto}
 /* 층 탭 재석 뱃지 */
 .seg button .tcnt{display:inline-block; margin-left:7px; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; background:var(--line); color:var(--muted)}
@@ -161,6 +169,11 @@ button{font-family:inherit}
 .ddm button{border:0; background:transparent; text-align:left; padding:9px 12px; border-radius:8px; font:inherit; font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer; white-space:nowrap; width:100%}
 .ddm button:hover{background:var(--line-2); color:var(--accent)}
 .iconbtn.sm{width:34px; height:34px; border-radius:9px} .iconbtn.sm svg{width:16px; height:16px}
+/* 우측 도구 — 유리 질감 그룹 박스 */
+.toolgroup{display:flex; align-items:center; gap:2px; padding:3px; border-radius:13px; background:color-mix(in srgb,var(--panel) 62%, transparent); backdrop-filter:blur(10px) saturate(1.2); -webkit-backdrop-filter:blur(10px) saturate(1.2); border:1px solid color-mix(in srgb,var(--ink) 9%, var(--line)); box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 2px 8px -4px rgba(20,30,60,.22)}
+.toolgroup .iconbtn{width:36px; height:36px; border:0; background:transparent; border-radius:9px}
+.toolgroup .iconbtn:hover{background:var(--line-2); color:var(--accent)}
+.toolgroup .iconbtn.on{background:var(--accent-weak); color:var(--accent)}
 .iconbtn svg{stroke-linecap:round; stroke-linejoin:round}
 .legend .llab{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-right:2px; flex:0 0 auto}
 .chip{display:inline-flex; align-items:center; gap:7px; padding:6px 12px 6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; white-space:nowrap; font-size:12px; font-weight:600; color:var(--ink-2); transition:.14s; flex:0 0 auto}

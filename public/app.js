@@ -136,6 +136,7 @@ function render(){
   tabs();
   paper.style.width=f.w+'px'; paper.style.height=f.h+'px';
   { let bgi=paper.querySelector('.bgimg'); if(f.bg){ if(!bgi){bgi=document.createElement('img');bgi.className='bgimg';paper.insertBefore(bgi,paper.firstChild);} if(bgi.getAttribute('src')!==f.bg)bgi.setAttribute('src',f.bg); bgi.style.opacity=(f.bgOp==null?1:f.bgOp); } else if(bgi){ bgi.remove(); } }
+  paper.classList.toggle('dots',!f.bg);   // 배경도면 없는 층에만 도트 격자
   walls.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); walls.style.width=f.w+'px'; walls.style.height=f.h+'px';
   mlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); mlayer.style.width=f.w+'px'; mlayer.style.height=f.h+'px';
   dlayer.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); dlayer.style.width=f.w+'px'; dlayer.style.height=f.h+'px';
@@ -188,6 +189,12 @@ function selectDept(id){ filter=filter===id?null:id;
 function paintFilter(){ $$('#legend .chip[data-id]').forEach(c=>{c.classList.toggle('on',c.dataset.id===filter); c.classList.toggle('faded',filter&&c.dataset.id!==filter);}); const vc=$('#vacChip'); if(vc)vc.classList.toggle('on',vacantMode); $('#clrFilter').hidden=!(filter||vacantMode); }
 function toggleVacant(){ vacantMode=!vacantMode; if(vacantMode){ $('#q').value=''; searchMatches=[]; } render(); paintFilter(); if(vacantMode)fit(); }
 $('#clrFilter').onclick=()=>{filter=null; vacantMode=false; render(); paintFilter();};
+/* 빈 배경을 탭(짧은 클릭)하면 부서 하이라이트 해제 (드래그/편집 중 제외) */
+let _tapXY=null;
+wrap.addEventListener('pointerdown',e=>{ _tapXY=[e.clientX,e.clientY]; },true);
+wrap.addEventListener('pointerup',e=>{ if(!_tapXY)return; const mv=Math.hypot(e.clientX-_tapXY[0],e.clientY-_tapXY[1]); _tapXY=null;
+  if(mv>6||editMode)return; if(e.target.closest('.item'))return;
+  if(filter||vacantMode){ filter=null; vacantMode=false; render(); paintFilter(); } });
 
 function applyFilter(){ const q=$('#q').value.trim().toLowerCase(); let first=null;
   const active=!!(q||filter||vacantMode);
@@ -206,6 +213,9 @@ function applyFilter(){ const q=$('#q').value.trim().toLowerCase(); let first=nu
     if(vacantMode)hit=false;
     el.classList.toggle('hit',active&&hit); el.classList.toggle('dim',active&&!hit);
     if(hit&&!first&&active&&!q&&!vacantMode)first=it; });
+  // 부서 스포트라이트: 좌석 외 요소(시설·공간·라벨·도형)도 40% 디밍 (벽/선은 유지)
+  const spot=!!filter;
+  $$('.item',paper).forEach(el=>{ if(el.classList.contains('desk')||el.classList.contains('line'))return; el.classList.toggle('sdim',spot); });
   if(first&&(filter||vacantMode)&&!$('#q').value.trim())centerOn(first); }
 function animateView(tx,ty,s,ms){ ms=ms||430; const s0={tx:view.tx,ty:view.ty,s:view.s}, t0=performance.now(); cancelAnimationFrame(view._raf);
   const step=now=>{ let k=Math.min(1,(now-t0)/ms); k=1-Math.pow(1-k,3); view.tx=s0.tx+(tx-s0.tx)*k; view.ty=s0.ty+(ty-s0.ty)*k; view.s=s0.s+(s-s0.s)*k; applyView(); if(k<1)view._raf=requestAnimationFrame(step); };
@@ -382,6 +392,7 @@ document.addEventListener('keydown',e=>{
   const typing=/input|select|textarea/i.test(e.target.tagName);
   const mod=e.ctrlKey||e.metaKey;
   if(e.code==='Space' && !typing && !mod){ if(!spaceDown){ spaceDown=true; wrap.classList.add('spacepan'); } e.preventDefault(); return; }  // 스페이스바=화면이동 모드
+  if(mod && e.key.toLowerCase()==='k'){ e.preventDefault(); const q=$('#q'); q.focus(); q.select(); return; }  // 검색창 포커스
   if(mod && e.key.toLowerCase()==='s'){ e.preventDefault(); if(editMode)save(); return; }
   if(mod && e.key==='1'){ e.preventDefault(); $('#measBtn').click(); return; }           // 측정 켜기/끄기
   if(mod && e.key==='2' && editMode){ e.preventDefault(); addItem('line'); return; }       // 선
