@@ -13,27 +13,28 @@ const snap=(v,g=5)=>Math.round(v/g)*g, clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const ADMIN_PW='0810';
 
 /* ── 프리미엄 라인 아이콘 ── */
+/* 듀오톤 프리미엄 아이콘: 은은한 채움(opacity) + 라운드 스트로크. 채움 요소를 먼저(뒤에) 둔다. */
 const IC={
-  wc:'<circle cx="12" cy="6" r="2.7"/><path d="M6 20a6 6 0 0 1 12 0"/>',
-  locker:'<rect x="7" y="3" width="10" height="18" rx="1.5"/><path d="M10 7h4"/><path d="M13.5 11.5v2"/>',
-  printer:'<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="8" rx="1.5"/><path d="M7 14h10v6H7z"/><circle cx="8" cy="11" r=".7" fill="currentColor" stroke="none"/>',
-  phone:'<path d="M6.5 4.5 9 4l1.6 4-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2 4 1.6-.5 2.4A2 2 0 0 1 17.9 20 15 15 0 0 1 4 6.1 2 2 0 0 1 6.5 4.5z"/>',
-  table:'<rect x="3.5" y="7" width="17" height="3" rx="1"/><path d="M6 10v7M18 10v7"/>',
-  elevator:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M12 6.5 9.8 9.5h4.4L12 6.5z" fill="currentColor" stroke="none"/><path d="M12 17.5 9.8 14.5h4.4L12 17.5z" fill="currentColor" stroke="none"/>',
-  stairs:'<path d="M3 19h4v-4h4v-4h4v-4h5"/>',
-  coffee:'<path d="M5 8h11v4a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 9h2.2a2.3 2.3 0 0 1 0 4.6H16"/><path d="M8 3.5v1.5M11 3.5v1.5"/>',
-  sofa:'<path d="M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3"/><rect x="3" y="11" width="18" height="6" rx="2"/><path d="M6 17v2M18 17v2"/>',
-  box:'<path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/>',
-  archive:'<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16"/><path d="M10 7h4M10 12.5h4M10 17.5h4"/>',
-  monitor:'<rect x="3" y="4.5" width="18" height="11" rx="2"/><path d="M8 19.5h8M12 15.5v4"/>',
-  kiosk:'<rect x="6" y="3" width="12" height="13" rx="1.5"/><path d="M9 19.5h6M12 16v3.5"/>',
-  meeting:'<circle cx="9" cy="8" r="2.3"/><circle cx="16" cy="8.5" r="1.9"/><path d="M4.5 18a4.5 4.5 0 0 1 9 0"/><path d="M14 18a4.2 4.2 0 0 1 5.5-4"/>',
-  plant:'<path d="M12 21v-9"/><path d="M12 12C12 8.5 9.2 6 5.5 6c0 3.5 2.8 6 6.5 6z"/><path d="M12 14c0-2.8 2.6-5 6-5 0 2.8-2.6 5-6 5z"/>',
-  hvac:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6.5 9v6M11 9v6M15.5 9v6"/>',
-  building:'<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9.5 16h5v5"/>',
-  corridor:'<path d="M8 12h8M8 12l3-3M8 12l3 3M16 12l-3-3M16 12l-3 3"/>',
-  lab:'<path d="M9 3h6M10 3v6l-5.2 8.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.2-2.5L14 9V3"/><path d="M7.5 14.5h9"/>',
-  pin:'<path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/>',
+  wc:'<circle cx="12" cy="6.3" r="2.6" fill="currentColor" opacity=".15" stroke="none"/><circle cx="12" cy="6.3" r="2.6"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0"/>',
+  locker:'<rect x="6.3" y="3" width="11.4" height="18" rx="1.7" fill="currentColor" opacity=".11" stroke="none"/><rect x="6.3" y="3" width="11.4" height="18" rx="1.7"/><path d="M12 3v18"/><path d="M9.3 7.6v1.8M14.7 7.6v1.8"/>',
+  printer:'<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="8.4" rx="1.8" fill="currentColor" opacity=".12" stroke="none"/><rect x="4" y="8" width="16" height="8.4" rx="1.8"/><rect x="7" y="13.4" width="10" height="6.6" rx="1"/><circle cx="7.6" cy="11" r=".8" fill="currentColor" stroke="none"/>',
+  phone:'<path d="M6.5 4.5 9 4l1.6 4-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2 4 1.6-.5 2.4A2 2 0 0 1 17.9 20 15 15 0 0 1 4 6.1 2 2 0 0 1 6.5 4.5z" fill="currentColor" opacity=".14"/>',
+  table:'<rect x="3.5" y="7" width="17" height="3.2" rx="1.4" fill="currentColor" opacity=".14" stroke="none"/><rect x="3.5" y="7" width="17" height="3.2" rx="1.4"/><path d="M6 10.2V17M18 10.2V17"/>',
+  elevator:'<rect x="5" y="3" width="14" height="18" rx="2.2" fill="currentColor" opacity=".11" stroke="none"/><rect x="5" y="3" width="14" height="18" rx="2.2"/><path d="M12 6.4 9.9 9.2h4.2L12 6.4z" fill="currentColor" stroke="none"/><path d="M12 17.6 9.9 14.8h4.2L12 17.6z" fill="currentColor" stroke="none"/>',
+  stairs:'<path d="M4 20h4v-4h4v-4h4v-4h4V20z" fill="currentColor" opacity=".12" stroke="none"/><path d="M4 20h4v-4h4v-4h4v-4h4"/>',
+  coffee:'<path d="M5 8h11v4a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z" fill="currentColor" opacity=".13" stroke="none"/><path d="M5 8h11v4a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 9h2.2a2.3 2.3 0 0 1 0 4.6H16"/><path d="M8 3.6v1.6M11 3.6v1.6"/><path d="M5 19h11"/>',
+  sofa:'<rect x="3" y="11" width="18" height="6" rx="2.2" fill="currentColor" opacity=".13" stroke="none"/><path d="M5 11V8.2A2.2 2.2 0 0 1 7.2 6h9.6A2.2 2.2 0 0 1 19 8.2V11"/><rect x="3" y="11" width="18" height="6" rx="2.2"/><path d="M6 17v2M18 17v2"/>',
+  box:'<path d="M12 3 4 7v10l8 4 8-4V7z" fill="currentColor" opacity=".12" stroke="none"/><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/>',
+  archive:'<rect x="4" y="4" width="16" height="16" rx="1.8" fill="currentColor" opacity=".1" stroke="none"/><rect x="4" y="4" width="16" height="16" rx="1.8"/><path d="M4 9.5h16M4 14.5h16"/><path d="M10 6.7h4M10 12h4M10 17h4"/>',
+  monitor:'<rect x="3" y="4.5" width="18" height="11" rx="2.2" fill="currentColor" opacity=".12" stroke="none"/><rect x="3" y="4.5" width="18" height="11" rx="2.2"/><path d="M8 19.5h8M12 15.5v4"/>',
+  kiosk:'<rect x="5" y="3" width="14" height="12" rx="1.8" fill="currentColor" opacity=".12" stroke="none"/><rect x="5" y="3" width="14" height="12" rx="1.8"/><path d="M12 15v3M8.6 21l1-3h4.8l1 3z"/>',
+  meeting:'<circle cx="9" cy="8" r="2.3" fill="currentColor" opacity=".15" stroke="none"/><circle cx="9" cy="8" r="2.3"/><circle cx="16" cy="8.5" r="1.9"/><path d="M4.5 18a4.5 4.5 0 0 1 9 0"/><path d="M14 18a4.2 4.2 0 0 1 5.5-4"/>',
+  plant:'<path d="M12 12C12 8.5 9.2 6 5.5 6c0 3.5 2.8 6 6.5 6z" fill="currentColor" opacity=".13" stroke="none"/><path d="M12 21v-9"/><path d="M12 12C12 8.5 9.2 6 5.5 6c0 3.5 2.8 6 6.5 6z"/><path d="M12 13.6c0-2.8 2.6-5 6-5 0 2.8-2.6 5-6 5z"/>',
+  hvac:'<rect x="3" y="5" width="18" height="14" rx="2.2" fill="currentColor" opacity=".1" stroke="none"/><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M6.5 9v6M11 9v6M15.5 9v6"/>',
+  building:'<rect x="5" y="3" width="14" height="18" rx="1.6" fill="currentColor" opacity=".1" stroke="none"/><rect x="5" y="3" width="14" height="18" rx="1.6"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01"/><path d="M9.5 21v-4h5v4"/>',
+  corridor:'<path d="M4 4v16M20 4v16"/><path d="M12 7.5v9"/><path d="M12 7.5 9.9 9.9M12 7.5l2.1 2.4M12 16.5l-2.1-2.4M12 16.5l2.1-2.4"/>',
+  lab:'<path d="M10 3.4v5.4L5.1 17.3A1.6 1.6 0 0 0 6.5 19.8h11a1.6 1.6 0 0 0 1.4-2.5L14 8.8V3.4z" fill="currentColor" opacity=".12" stroke="none"/><path d="M9 3.4h6M10 3.4v5.4L5.1 17.3A1.6 1.6 0 0 0 6.5 19.8h11a1.6 1.6 0 0 0 1.4-2.5L14 8.8V3.4"/><path d="M7.8 14.4h8.4"/>',
+  pin:'<path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z" fill="currentColor" opacity=".14" stroke="none"/><path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/>',
 };
 function kindOf(t){ t=(t||'').toLowerCase();
   if(/락커|locker/.test(t))return 'locker'; if(/화장실|toilet|wc/.test(t))return 'wc';
@@ -800,7 +801,7 @@ function calibrateAll(st){ st=st||STATE; (st.floors||[]).forEach(f=>calibrateFlo
 function fmtM(m){ return (Math.round(m*10)/10).toFixed(1)+' m'; }
 function autoLen(a,b){ const f=curFloor(); const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; const sc=hz?f.mX:f.mY; return sc?fmtM(len*sc):Math.round(len)+' px'; }
 function drawMeas(preview){ if(!mlayer)return;
-  if(!measMode && !editMode){ mlayer.innerHTML=''; return; }   // 뷰어 기본=숨김, 📏 누르면 표시(편집 중엔 참고용 표시)
+  if(!measMode){ mlayer.innerHTML=''; return; }   // 치수는 오직 '치수' 버튼으로만 표시 — 편집 모드/휠 확대와 무관하게 항상 숨김이 기본
   const inv=1/view.s, f=curFloor(); if(!f){ mlayer.innerHTML=''; return; }
   const seg=(a,b,id,prev,val)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2; const text=(val!=null)?(val+' m'):autoLen(a,b); const manual=val!=null;
     return `<g ${id?`data-mi="${id}"`:''}>`+
@@ -821,8 +822,10 @@ function editVal(id){ const it=STATE.items.find(x=>x.id===id); if(!it)return; co
   if(t===''){ delete it.val; it.auto=true; } else { const m=parseFloat(t); if(!(m>0))return alert('숫자로 입력하세요'); it.val=m; delete it.auto; }
   calibrateFloor(STATE,f); markDirty(); pushHist(); drawMeas(); }
 function clearMeasure(){ if(mlayer)mlayer.innerHTML=''; }
-$('#measBtn').onclick=()=>{ measMode=!measMode; $('#measBtn').classList.toggle('on',measMode); wrap.classList.toggle('measuring',measMode); drawMeas();
-  toast(measMode?'측정 모드: 드래그로 길이 측정 · 관리자는 치수선 이동/저장':'측정 끔 · 치수선은 계속 보이고, 관리자는 벽·선 그리기 가능'); };
+$('#measBtn').onclick=()=>{ measMode=!measMode; try{localStorage.setItem('measOn',measMode?'1':'0');}catch(e){} $('#measBtn').classList.toggle('on',measMode); wrap.classList.toggle('measuring',measMode); drawMeas();
+  toast(measMode?'치수 켜짐 · 드래그로 길이 측정(관리자는 이동/저장) — 다시 켜도 유지됨':'치수 꺼짐 · 이 설정은 저장되어 다음에도 유지됩니다'); };
+/* 치수 on/off 상태 복원 (저장된 선택 유지) */
+(function(){ let on=false; try{on=localStorage.getItem('measOn')==='1';}catch(e){} measMode=on; $('#measBtn').classList.toggle('on',on); wrap.classList.toggle('measuring',on); })();
 if(mlayer){ mlayer.addEventListener('contextmenu',e=>{ if(!editMode)return; const g=e.target.closest('[data-mi]'); if(g){ e.preventDefault(); STATE.items=STATE.items.filter(x=>x.id!==g.dataset.mi); markDirty(); pushHist(); drawMeas(); } }); }
 
 async function save(){ try{ STATE.updatedAt=Date.now();
