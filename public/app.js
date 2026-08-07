@@ -792,6 +792,7 @@ function calibrateAll(st){ st=st||STATE; (st.floors||[]).forEach(f=>calibrateFlo
 function fmtM(m){ return (Math.round(m*10)/10).toFixed(1)+' m'; }
 function autoLen(a,b){ const f=curFloor(); const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y); const hz=dx>=dy; const len=hz?dx:dy; const sc=hz?f.mX:f.mY; return sc?fmtM(len*sc):Math.round(len)+' px'; }
 function drawMeas(preview){ if(!mlayer)return;
+  if(!measMode && !editMode){ mlayer.innerHTML=''; return; }   // 뷰어 기본=숨김, 📏 누르면 표시(편집 중엔 참고용 표시)
   const inv=1/view.s, f=curFloor(); if(!f){ mlayer.innerHTML=''; return; }
   const seg=(a,b,id,prev,val)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2; const text=(val!=null)?(val+' m'):autoLen(a,b); const manual=val!=null;
     return `<g ${id?`data-mi="${id}"`:''}>`+
