@@ -596,27 +596,27 @@ function editDesk(it){
 }
 
 /* ── 면적 · 부서별 비용 집계 (재무) ── */
-function openAreaReport(){ const M2PY=3.3058;
-  const rows={}; let tArea=0,tCnt=0,tSeat=0;
-  STATE.items.filter(i=>i.type==='desk').forEach(it=>{ const k=it.deptId||'__none', a=deskArea(it);
-    if(!rows[k])rows[k]={area:0,cnt:0,seated:0}; rows[k].area+=a; rows[k].cnt++; if(it.name)rows[k].seated++; tArea+=a; tCnt++; if(it.name)tSeat++; });
-  const list=Object.entries(rows).map(([k,v])=>({name:k==='__none'?'(부서 미지정)':(DBYID[k]?DBYID[k].name:'(삭제된 부서)'),color:DBYID[k]?DBYID[k].color:'#9aa1b0',...v})).sort((a,b)=>b.area-a.area);
+function openAreaReport(){ const M2PY=3.3058; const fl=curFloor();
+  const rows={}; let tArea=0,tCnt=0;
+  STATE.items.filter(i=>i.type==='desk'&&i.floorId===curId()).forEach(it=>{ const k=it.deptId||'__none', a=deskArea(it);
+    if(!rows[k])rows[k]={area:0,cnt:0}; rows[k].area+=a; rows[k].cnt++; tArea+=a; tCnt++; });
+  const list=Object.entries(rows).map(([k,v])=>({name:k==='__none'?'(부서 미지정)':(DBYID[k]?DBYID[k].name:'(삭제된 부서)'),color:DBYID[k]?DBYID[k].color:'#9aa1b0',...v})).sort((a,b)=>b.cnt-a.cnt);
   const body=list.map(r=>{ const pct=tArea?r.area/tArea*100:0;
-    return `<tr><td><span class="ldot" style="background:${r.color}"></span>${esc(r.name)}</td><td>${r.seated}/${r.cnt}</td><td>${r.area.toFixed(2)}</td><td>${(r.area/M2PY).toFixed(2)}</td><td>${pct.toFixed(1)}%</td><td class="cost" data-pct="${pct}">–</td></tr>`; }).join('');
-  openModal(`<h3>면적 · 부서별 비용 집계</h3>
-    <div class="arow"><label style="flex:1">총 비용 (임대료·관리비 등, 원)</label><input id="a_total" type="number" placeholder="예: 30000000" style="width:170px"/></div>
-    <div class="atbl-wrap"><table class="atbl"><thead><tr><th>부서</th><th>좌석<span style="font-weight:400">(재석/전체)</span></th><th>면적㎡</th><th>평</th><th>비율</th><th>배분비용</th></tr></thead>
-    <tbody>${body||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">좌석 없음</td></tr>'}</tbody>
-    <tfoot><tr><th>합계</th><th>${tSeat}/${tCnt}</th><th>${tArea.toFixed(2)}</th><th>${(tArea/M2PY).toFixed(2)}</th><th>100%</th><th id="a_tcost">–</th></tr></tfoot></table></div>
-    <div class="fnote">· 면적은 좌석 실치수(기본 1400×700mm) 기준이며 도면 축척과 무관하게 정확합니다. 방향(가로/세로)은 면적에 영향 없음. · 1평 = 3.3058㎡</div>
+    return `<tr><td><span class="ldot" style="background:${r.color}"></span>${esc(r.name)}</td><td>${r.cnt}</td><td>${r.area.toFixed(2)}</td><td>${(r.area/M2PY).toFixed(2)}</td><td>${pct.toFixed(1)}%</td><td class="cost" data-pct="${pct}">–</td></tr>`; }).join('');
+  openModal(`<h3>부서별 면적 · <span style="color:var(--accent)">${esc(fl?fl.name:'')}</span></h3>
+    <div class="arow"><label style="flex:1">총 비용 (선택 · 임대료·관리비 등, 원)</label><input id="a_total" type="number" placeholder="예: 30000000" style="width:170px"/></div>
+    <div class="atbl-wrap"><table class="atbl"><thead><tr><th>부서</th><th>책상수</th><th>면적(㎡)</th><th>평</th><th>비율</th><th>배분비용</th></tr></thead>
+    <tbody>${body||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">이 층에 좌석 없음</td></tr>'}</tbody>
+    <tfoot><tr><th>합계</th><th>${tCnt}</th><th>${tArea.toFixed(2)}</th><th>${(tArea/M2PY).toFixed(2)}</th><th>100%</th><th id="a_tcost">–</th></tr></tfoot></table></div>
+    <div class="fnote">· <b>${esc(fl?fl.name:'')}</b> 기준 · 부서별 <b>책상 수 × 책상 면적</b> 합계 (책상 1개 = 1400×700 = 0.98㎡) · 1평 = 3.3058㎡ · 총비용 입력 시 비율대로 배분</div>
     <div class="actions"><button class="btn" id="a_csv">⬇ CSV</button><span style="flex:1"></span><button class="btn primary" id="a_close">닫기</button></div>`);
   $('#modal').classList.add('wide');
   const calc=()=>{ const tot=+$('#a_total').value||0; $$('.atbl .cost').forEach(td=>{ const p=+td.dataset.pct||0; td.textContent=tot?Math.round(tot*p/100).toLocaleString():'–'; }); $('#a_tcost').textContent=tot?Math.round(tot).toLocaleString():'–'; };
   $('#a_total').oninput=calc; $('#a_close').onclick=closeModal;
-  $('#a_csv').onclick=()=>{ const tot=+$('#a_total').value||0; let csv='부서,재석,전체좌석,면적(㎡),면적(평),비율(%),배분비용(원)\n';
-    list.forEach(r=>{ const pct=tArea?r.area/tArea*100:0; csv+=`${r.name},${r.seated},${r.cnt},${r.area.toFixed(2)},${(r.area/M2PY).toFixed(2)},${pct.toFixed(1)},${tot?Math.round(tot*pct/100):''}\n`; });
-    csv+=`합계,${tSeat},${tCnt},${tArea.toFixed(2)},${(tArea/M2PY).toFixed(2)},100,${tot?Math.round(tot):''}\n`;
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'})); a.download='부서별_면적_비용.csv'; a.click(); };
+  $('#a_csv').onclick=()=>{ const tot=+$('#a_total').value||0; let csv='부서,책상수,면적(㎡),면적(평),비율(%),배분비용(원)\n';
+    list.forEach(r=>{ const pct=tArea?r.area/tArea*100:0; csv+=`${r.name},${r.cnt},${r.area.toFixed(2)},${(r.area/M2PY).toFixed(2)},${pct.toFixed(1)},${tot?Math.round(tot*pct/100):''}\n`; });
+    csv+=`합계,${tCnt},${tArea.toFixed(2)},${(tArea/M2PY).toFixed(2)},100,${tot?Math.round(tot):''}\n`;
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'})); a.download=`부서별_면적_${fl?fl.name:''}.csv`; a.click(); };
 }
 if($('#areaBtn'))$('#areaBtn').onclick=openAreaReport;
 
