@@ -123,12 +123,16 @@ function clampToFloor(it){ const f=curFloor(); if(!f||f.w==null||it.x==null)retu
   if(it.x<0)it.x=0; if(it.y<0)it.y=0;
   if(it.x+it.w>f.w)it.x=f.w-it.w; if(it.y+it.h>f.h)it.y=f.h-it.h; }
 
-function tabs(){ $('#floors').innerHTML=STATE.floors.map((f,i)=>`<button class="${i===fi?'on':''}" data-i="${i}">${esc(f.name)}</button>`).join('');
+function tabs(){ $('#floors').innerHTML=STATE.floors.map((f,i)=>{
+    let cnt='';
+    if(i===fi){ const ds=STATE.items.filter(x=>x.type==='desk'&&x.floorId===f.id); const o=ds.filter(d=>d.name).length; cnt=`<span class="tcnt">${o}/${ds.length}</span>`; }
+    return `<button class="${i===fi?'on':''}" data-i="${i}">${esc(f.name)}${cnt}</button>`;
+  }).join('');
   $$('#floors button').forEach(b=>b.onclick=()=>{fi=+b.dataset.i; activeId=null; selected.clear(); closePanel(); render(); fit(); drawMeas();}); }
 
 function render(){
   const f=curFloor(); if(!f)return;
-  $$('#floors button').forEach(b=>b.classList.toggle('on',+b.dataset.i===fi));
+  tabs();
   paper.style.width=f.w+'px'; paper.style.height=f.h+'px';
   { let bgi=paper.querySelector('.bgimg'); if(f.bg){ if(!bgi){bgi=document.createElement('img');bgi.className='bgimg';paper.insertBefore(bgi,paper.firstChild);} if(bgi.getAttribute('src')!==f.bg)bgi.setAttribute('src',f.bg); bgi.style.opacity=(f.bgOp==null?1:f.bgOp); } else if(bgi){ bgi.remove(); } }
   walls.setAttribute('viewBox',`0 0 ${f.w} ${f.h}`); walls.style.width=f.w+'px'; walls.style.height=f.h+'px';
@@ -168,7 +172,7 @@ function moveTip(e){ tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.client
 
 function stats(){ const tot=STATE.employees.length, seated=STATE.items.filter(i=>i.type==='desk'&&i.name).length, un=Math.max(0,tot-seated);
   const pct=tot?Math.round(seated/tot*100):0;
-  $('#stats').innerHTML=`<span><b>${tot}</b>임직원</span><span class="sep"></span><span><b>${seated}</b>배치</span><span class="sep"></span><span><b>${un}</b>미배치</span><span class="sep"></span><span class="accent"><b>${pct}%</b>배치율</span>`; }
+  $('#stats').innerHTML=`<span class="pill"><b>${tot}</b>임직원</span><span class="pill"><b>${seated}</b>배치</span><span class="pill"><b>${un}</b>미배치</span><span class="pill accent"><b>${pct}%</b>배치율</span>`; }
 function empCnt(){ const c={}; STATE.employees.forEach(e=>{const d=DBYNAME[e.dept]; if(d)c[d.id]=(c[d.id]||0)+1;}); return c; }
 function legend(){ const cnt=empCnt(); const pres=STATE.depts.filter(d=>cnt[d.id]).sort((a,b)=>cnt[b.id]-cnt[a.id]);
   const av=fItems().filter(i=>i.type==='desk'&&!i.name&&!i.reserved).length;
@@ -431,6 +435,10 @@ function addItem(type){ const f=curFloor(); if(!f)return;
   if(type==='desk')editDesk(it); else if(type==='facility')editFacility(it); else if(type==='label')editLabel(it); else if(type==='door')editDoor(it);
 }
 $$('[data-add]').forEach(b=>b.onclick=()=>addItem(b.dataset.add));
+/* 편집툴바 드롭다운: 항목 클릭 시 닫기 + 바깥 클릭 시 닫기 + 열 때 나머지 닫기 */
+$$('.dd .ddm button').forEach(b=>b.addEventListener('click',()=>{ const d=b.closest('details.dd'); if(d)d.open=false; }));
+$$('details.dd>summary').forEach(s=>s.addEventListener('click',()=>{ $$('details.dd').forEach(d=>{ if(d!==s.parentElement)d.open=false; }); }));
+document.addEventListener('click',e=>{ if(!e.target.closest('details.dd'))$$('details.dd[open]').forEach(d=>d.open=false); });
 
 /* 배경 이미지(도면) — 실척 배경으로 깔기 */
 if($('#bgBtn'))$('#bgBtn').onclick=()=>{ const f=curFloor(); if(!f)return;

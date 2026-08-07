@@ -19,9 +19,11 @@ button{font-family:inherit}
 .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);align-self:center}
 .brand .sub{font-size:10.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--faint)}
 .spacer{flex:1}
-.stats{display:flex; align-items:center; gap:13px; font-size:12px; color:var(--muted); font-weight:600; margin-left:6px}
-.stats span{display:inline-flex; align-items:baseline; gap:4px} .stats b{font-size:15px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em}
-.stats .sep{width:1px; height:16px; background:var(--line)} .stats .accent b{color:var(--accent)}
+.stats{display:flex; align-items:center; gap:6px}
+.stats .pill{display:inline-flex; align-items:baseline; gap:5px; padding:5px 11px; background:var(--line-2); border:1px solid var(--line); border-radius:999px; font-size:11px; color:var(--muted); font-weight:700; white-space:nowrap}
+.stats .pill b{font-size:14px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.stats .pill.accent{background:var(--accent-weak); border-color:transparent} .stats .pill.accent b{color:var(--accent)}
+@media (max-width:1180px){ .stats{display:none} }
 .search{position:relative; display:flex; align-items:center}
 .search svg{position:absolute; left:12px; width:15px; height:15px; color:var(--faint)}
 .search input{width:250px; max-width:32vw; padding:10px 12px 10px 35px; font-size:13.5px; color:var(--ink); background:var(--line-2); border:1px solid transparent; border-radius:11px; outline:none; transition:.15s}
@@ -139,7 +141,23 @@ button{font-family:inherit}
 .item.sel{outline:2px dashed var(--accent); outline-offset:2px; z-index:11}
 .marquee{position:absolute; border:1.5px dashed var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); z-index:25; pointer-events:none}
 
-.legend{display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 20px; flex:0 0 auto; overflow-x:auto; background:var(--panel); border-top:1px solid var(--line)}
+.legend{display:flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; flex:0 0 auto; overflow-x:auto; background:color-mix(in srgb,var(--panel) 80%, transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--line); box-shadow:0 -10px 26px -20px rgba(20,30,60,.35)}
+.legend .llab{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-right:2px; flex:0 0 auto}
+/* 층 탭 재석 뱃지 */
+.seg button .tcnt{display:inline-block; margin-left:7px; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; background:var(--line); color:var(--muted)}
+.seg button.on .tcnt{background:rgba(255,255,255,.28); color:#fff}
+#floccu{display:none}
+/* 편집툴바 드롭다운 */
+.dd{position:relative; display:inline-block}
+.dd>summary{list-style:none; cursor:pointer; user-select:none}
+.dd>summary::-webkit-details-marker{display:none}
+.dd>summary::after{content:"▾"; font-size:10px; opacity:.55; margin-left:5px}
+.dd[open]>summary{border-color:var(--accent); color:var(--accent); background:var(--accent-weak)}
+.ddm{position:absolute; top:calc(100% + 6px); left:0; z-index:60; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-lift); padding:6px; min-width:170px; display:flex; flex-direction:column; gap:2px}
+.ddm button{border:0; background:transparent; text-align:left; padding:9px 12px; border-radius:8px; font:inherit; font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer; white-space:nowrap; width:100%}
+.ddm button:hover{background:var(--line-2); color:var(--accent)}
+.iconbtn.sm{width:34px; height:34px; border-radius:9px} .iconbtn.sm svg{width:16px; height:16px}
+.iconbtn svg{stroke-linecap:round; stroke-linejoin:round}
 .legend .llab{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-right:2px; flex:0 0 auto}
 .chip{display:inline-flex; align-items:center; gap:7px; padding:6px 12px 6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; white-space:nowrap; font-size:12px; font-weight:600; color:var(--ink-2); transition:.14s; flex:0 0 auto}
 .chip .dot{width:8px;height:8px;border-radius:2px; background:var(--dc)} .chip .ct{font-size:11px; color:var(--faint); font-variant-numeric:tabular-nums; font-weight:700}
