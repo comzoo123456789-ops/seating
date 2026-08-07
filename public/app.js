@@ -733,15 +733,23 @@ function manageDept(){
 /* 층 관리 */
 $('#mgrFloor').onclick=manageFloor;
 function manageFloor(){
-  const row=f=>`<div class="flrow" data-id="${f.id}"><input class="fn" value="${esc(f.name||'')}"/><input class="fw" type="number" value="${f.w}"/><span>×</span><input class="fh" type="number" value="${f.h}"/><button class="rm" title="삭제">✕</button></div>`;
-  openModal(`<h3>층 관리</h3><div class="flrlist" id="flrlist">${STATE.floors.map(row).join('')}</div>
+  const HANDLE='<span class="fdrag" title="드래그로 순서 변경">⠿</span>';
+  const row=f=>`<div class="flrow" data-id="${f.id}">${HANDLE}<input class="fn" value="${esc(f.name||'')}"/><input class="fw" type="number" value="${f.w}"/><span>×</span><input class="fh" type="number" value="${f.h}"/><button class="rm" title="삭제">✕</button></div>`;
+  openModal(`<h3>층 관리</h3><p class="mhint">⠿ 를 잡고 위/아래로 끌면 순서(탭 순서)가 바뀝니다. 맨 아래가 마지막 탭입니다.</p><div class="flrlist" id="flrlist">${STATE.floors.map(row).join('')}</div>
     <button class="btn sm" id="fl_add" style="margin-top:8px">＋ 층 추가</button>
     <button class="btn sm" id="fl_dup" style="margin-top:8px">📄 현재 층 복제</button>
     <div class="actions"><button class="btn" id="m_cancel">취소</button><button class="btn primary" id="m_ok">저장</button></div>`);
   const bindRm=()=>$$('#flrlist .rm',$('#modal')).forEach(b=>b.onclick=()=>{ if($$('#flrlist .flrow',$('#modal')).length<=1)return alert('최소 1개 층이 필요합니다.'); b.closest('.flrow').remove(); });
-  bindRm();
+  const bindDrag=()=>{ const list=$('#flrlist'); $$('.fdrag',list).forEach(h=>{ h.onpointerdown=e=>{ e.preventDefault();
+      const rowEl=h.closest('.flrow'); rowEl.classList.add('dragging');
+      const move=ev=>{ const others=$$('.flrow:not(.dragging)',list);
+        const after=others.find(r=>{ const b=r.getBoundingClientRect(); return ev.clientY < b.top + b.height/2; });
+        if(after)list.insertBefore(rowEl,after); else list.appendChild(rowEl); };
+      const up=()=>{ rowEl.classList.remove('dragging'); document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); }; }); };
+  bindRm(); bindDrag();
   $('#fl_add').onclick=()=>{ const div=document.createElement('div'); div.className='flrow'; div.dataset.id='n'+uid();
-    div.innerHTML=`<input class="fn" value="새 층"/><input class="fw" type="number" value="1400"/><span>×</span><input class="fh" type="number" value="800"/><button class="rm">✕</button>`; $('#flrlist').appendChild(div); bindRm(); };
+    div.innerHTML=`${HANDLE}<input class="fn" value="새 층"/><input class="fw" type="number" value="1400"/><span>×</span><input class="fh" type="number" value="800"/><button class="rm">✕</button>`; $('#flrlist').appendChild(div); bindRm(); bindDrag(); };
   $('#fl_dup').onclick=()=>{ closeModal(); dupFloor(); };
   $('#m_cancel').onclick=closeModal;
   $('#m_ok').onclick=()=>{ const nf=$$('#flrlist .flrow',$('#modal')).map(r=>{ const old=STATE.floors.find(f=>f.id===r.dataset.id)||{}; return {id:r.dataset.id,name:r.querySelector('.fn').value.trim()||'층',w:+r.querySelector('.fw').value||1400,h:+r.querySelector('.fh').value||800, ...(old.mX?{mX:old.mX}:{}), ...(old.mY?{mY:old.mY}:{})}; });
