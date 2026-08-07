@@ -175,11 +175,18 @@ function moveTip(e){ tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.client
 function stats(){ const tot=STATE.employees.length, seated=STATE.items.filter(i=>i.type==='desk'&&i.name).length, un=Math.max(0,tot-seated);
   const pct=tot?Math.round(seated/tot*100):0;
   $('#stats').innerHTML=`<span class="pill"><b>${tot}</b>임직원</span><span class="pill"><b>${seated}</b>배치</span><span class="pill"><b>${un}</b>미배치</span><span class="pill accent"><b>${pct}%</b>배치율</span>`; }
-function empCnt(){ const c={}; STATE.employees.forEach(e=>{const d=DBYNAME[e.dept]; if(d)c[d.id]=(c[d.id]||0)+1;}); return c; }
-function legend(){ const cnt=empCnt(); const pres=STATE.depts.filter(d=>cnt[d.id]).sort((a,b)=>cnt[b.id]-cnt[a.id]);
+/* 부서별: total=명단 전체 인원, seat=좌석에 배치된 수(전체 층) */
+function deptCounts(){ const total={},seat={};
+  STATE.employees.forEach(e=>{const d=DBYNAME[e.dept]; if(d)total[d.id]=(total[d.id]||0)+1;});
+  STATE.items.forEach(i=>{ if(i.type==='desk'&&i.name&&i.deptId)seat[i.deptId]=(seat[i.deptId]||0)+1; });
+  return {total,seat}; }
+function empCnt(){ return deptCounts().total; }
+function legend(){ const {total,seat}=deptCounts();
+  const pres=STATE.depts.filter(d=>(total[d.id]||0)||(seat[d.id]||0)).sort((a,b)=>(seat[b.id]||0)-(seat[a.id]||0)||(total[b.id]||0)-(total[a.id]||0));
   const av=fItems().filter(i=>i.type==='desk'&&!i.name&&!i.reserved).length;
   const vchip=`<span class="chip vchip ${vacantMode?'on':''}" id="vacChip" title="빈자리만 강조 (다시 누르면 해제)"><span class="dot"></span>빈자리<span class="ct">${av}</span></span>`;
-  $('#legend').innerHTML='<span class="llab">본부</span>'+vchip+pres.map(d=>`<span class="chip ${filter===d.id?'on':''} ${filter&&filter!==d.id?'faded':''}" data-id="${d.id}" style="--dc:${d.color}"><span class="dot"></span>${esc(d.name)}<span class="ct">${cnt[d.id]}</span></span>`).join('');
+  $('#legend').innerHTML='<span class="llab">본부 <em class="lsub">배치/전체</em></span>'+vchip+pres.map(d=>{ const s=seat[d.id]||0, t=total[d.id]||0, un=Math.max(0,t-s);
+    return `<span class="chip ${filter===d.id?'on':''} ${filter&&filter!==d.id?'faded':''}" data-id="${d.id}" style="--dc:${d.color}" title="${esc(d.name)} · 배치 ${s}명 · 미배치 ${un}명 · 전체 ${t}명"><span class="dot"></span>${esc(d.name)}<span class="ct">${s}<em>/${t}</em></span></span>`; }).join('');
   $$('#legend .chip[data-id]').forEach(c=>c.onclick=()=>selectDept(c.dataset.id));
   const vc=$('#vacChip'); if(vc)vc.onclick=toggleVacant; }
 function floccu(){ const f=curFloor(); const ds=fItems().filter(i=>i.type==='desk'); const o=ds.filter(d=>d.name).length; $('#floccu').innerHTML=`${esc(f.name)} · 재석 <b>${o}</b>/${ds.length}`; }

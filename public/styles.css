@@ -177,7 +177,10 @@ button{font-family:inherit}
 .iconbtn svg{stroke-linecap:round; stroke-linejoin:round}
 .legend .llab{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-right:2px; flex:0 0 auto}
 .chip{display:inline-flex; align-items:center; gap:7px; padding:6px 12px 6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; white-space:nowrap; font-size:12px; font-weight:600; color:var(--ink-2); transition:.14s; flex:0 0 auto}
-.chip .dot{width:8px;height:8px;border-radius:2px; background:var(--dc)} .chip .ct{font-size:11px; color:var(--faint); font-variant-numeric:tabular-nums; font-weight:700}
+.chip .dot{width:8px;height:8px;border-radius:2px; background:var(--dc)} .chip .ct{font-size:11px; color:var(--ink-2); font-variant-numeric:tabular-nums; font-weight:800}
+.chip .ct em{font-style:normal; font-weight:600; color:var(--faint)}
+.chip.on .ct{color:var(--ink)}
+.legend .llab .lsub{font-style:normal; font-weight:700; letter-spacing:0; text-transform:none; color:var(--faint); font-size:10px}
 .chip:hover{border-color:color-mix(in srgb,var(--dc) 50%, var(--line))}
 .chip.on{border-color:var(--dc); background:color-mix(in srgb,var(--dc) 13%, var(--panel)); color:var(--ink)} .chip.faded{opacity:.4}
 .chip.vchip .dot{background:#12a150; border-radius:50%}
